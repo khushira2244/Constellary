@@ -996,6 +996,20 @@ export type Database = {
         Returns: boolean
       }
       confirm_branch_draft: { Args: { draft_id: string }; Returns: Json }
+      create_collaboration_invite: {
+        Args: {
+          requested_access_scope?: Database["public"]["Enums"]["access_scope"]
+          requested_branch_id: string
+          requested_expires_at?: string | null
+          requested_invitee_email: string
+          requested_role: Database["public"]["Enums"]["collaborator_role"]
+        }
+        Returns: Json
+      }
+      decline_collaboration_invite: {
+        Args: { invite_token: string }
+        Returns: string
+      }
       has_resource_permission: {
         Args: {
           requested_permission: Database["public"]["Enums"]["permission_type"]
@@ -1004,6 +1018,10 @@ export type Database = {
           requested_user_id?: string
         }
         Returns: boolean
+      }
+      revoke_collaboration_invite: {
+        Args: { invitation_id: string }
+        Returns: string
       }
       is_branch_member: {
         Args: { requested_branch_id: string; requested_user_id?: string }
