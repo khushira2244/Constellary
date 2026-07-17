@@ -6,7 +6,10 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:integration:local": "node scripts/run-local-integration.mjs"
+    "test:integration:local": "node scripts/run-local-integration.mjs",
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
   },
   "dependencies": {
     "@supabase/ssr": "latest",

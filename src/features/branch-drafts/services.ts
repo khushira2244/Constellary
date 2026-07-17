@@ -91,6 +91,24 @@ export async function createMainBranchDraft(
   return ok(data);
 }
 
+export async function getLatestEditableMainBranchDraft(
+  client: AppSupabaseClient,
+): Promise<ServiceResult<BranchDraft | null>> {
+  const user = await requireCurrentUser(client);
+  if (!user.ok) return user;
+  const { data, error } = await client
+    .from("branch_drafts")
+    .select("*")
+    .eq("creator_id", user.data.id)
+    .is("parent_branch_id", null)
+    .is("confirmed_branch_id", null)
+    .order("updated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) return databaseFailure(error.message);
+  return ok(data);
+}
+
 export async function createSubbranchDraft(
   parentBranchId: string,
   client: AppSupabaseClient,
