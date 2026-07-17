@@ -43,16 +43,6 @@ export async function createTestUser(
   return { id: data.user.id, email, client };
 }
 
-export async function cleanupTestUsers(
-  admin: SupabaseClient<Database>,
-  userIds: string[],
-) {
-  for (const id of userIds.reverse()) {
-    const { error } = await admin.auth.admin.deleteUser(id);
-    if (error) throw error;
-  }
-}
-
 export async function createConfirmedBranch(
   client: SupabaseClient<Database>,
   userId: string,

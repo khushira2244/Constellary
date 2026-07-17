@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, test } from "vitest";
+import { beforeAll, describe, expect, test } from "vitest";
 
 import {
   addDraftCollaborator,
@@ -22,7 +22,6 @@ import {
 import { ensureCurrentProfile } from "@/features/profiles/services";
 import { requireCurrentUser } from "@/lib/auth/current-user";
 import {
-  cleanupTestUsers,
   createAnonymousClient,
   createConfirmedBranch,
   createTestAdmin,
@@ -36,7 +35,6 @@ const hasLocalSupabaseCredentials = Boolean(
 
 describe.sequential("Backend Block 1 against local Supabase", () => {
   let admin: ReturnType<typeof createTestAdmin>;
-  const userIds: string[] = [];
   let owner: Awaited<ReturnType<typeof createTestUser>>;
   let other: Awaited<ReturnType<typeof createTestUser>>;
 
@@ -50,12 +48,6 @@ describe.sequential("Backend Block 1 against local Supabase", () => {
     admin = createTestAdmin();
     owner = await createTestUser(admin, "owner");
     other = await createTestUser(admin, "other");
-    userIds.push(owner.id, other.id);
-  });
-
-  afterAll(async () => {
-    if (!admin) return;
-    await cleanupTestUsers(admin, userIds);
   });
 
   test.skipIf(!hasLocalSupabaseCredentials)(
