@@ -1,14 +1,8 @@
 \set ON_ERROR_STOP on
 begin;
 
-create function pg_temp.assert_true(condition boolean, message text)
-returns void language plpgsql as $$
-begin
-  if not coalesce(condition, false) then
-    raise exception 'ASSERTION FAILED: %', message;
-  end if;
-end;
-$$;
+create extension if not exists pgtap with schema extensions;
+select extensions.plan(10);
 
 insert into auth.users (
   id, aud, role, email, encrypted_password, email_confirmed_at,
@@ -51,13 +45,15 @@ create temporary table block4_branches(label text primary key, id uuid);
 insert into block4_branches values
   ('main', (public.confirm_branch_draft('d4000000-0000-4000-8000-000000000010')->>'branch_id')::uuid),
   ('other', (public.confirm_branch_draft('d4000000-0000-4000-8000-000000000011')->>'branch_id')::uuid);
+grant select on table block4_branches to authenticated;
+grant execute on function public.validate_branch_target(uuid, text, uuid) to authenticated;
 
-select pg_temp.assert_true(
+select extensions.ok(
   (select ai_enabled from public.branches where id = (select id from block4_branches where label='main')),
   'new branches should enable AI workflows by default'
 );
 
-select pg_temp.assert_true(
+select extensions.ok(
   to_regclass('public.branch_summaries_unique_ai_application_idx') is not null
   and to_regclass('public.workspace_items_unique_ai_application_idx') is not null,
   'AI application uniqueness indexes should exist'
@@ -77,7 +73,7 @@ set local role authenticated;
 
 update public.branches set ai_enabled = false
 where id = (select id from block4_branches where label='main');
-select pg_temp.assert_true(
+select extensions.ok(
   not (select ai_enabled from public.branches where id = (select id from block4_branches where label='main')),
   'owner should update AI enabled state'
 );
@@ -93,6 +89,7 @@ begin
   end;
 end;
 $$;
+select extensions.pass('confirmed branch original idea remains immutable');
 
 insert into public.workspace_items (
   id, branch_id, item_type, content, author_id
@@ -102,6 +99,7 @@ insert into public.workspace_items (
   'note', '{"text":"Owner note"}',
   'd4000000-0000-4000-8000-000000000001'
 );
+select extensions.pass('owner can create a Workspace item');
 
 do $$
 begin
@@ -120,6 +118,7 @@ begin
   end;
 end;
 $$;
+select extensions.pass('cross-branch Workspace parent is rejected');
 
 reset role;
 select set_config('request.jwt.claim.sub', 'd4000000-0000-4000-8000-000000000002', true);
@@ -135,6 +134,7 @@ values (
   'note', '{"text":"Editor note"}',
   'd4000000-0000-4000-8000-000000000002'
 );
+select extensions.pass('editor can create a Workspace item');
 
 reset role;
 select set_config('request.jwt.claim.sub', 'd4000000-0000-4000-8000-000000000003', true);
@@ -159,6 +159,7 @@ begin
   end;
 end;
 $$;
+select extensions.pass('commenter cannot create a Workspace item');
 insert into public.comments (
   branch_id, target_type, target_id, author_id, content, visibility
 ) values (
@@ -167,6 +168,7 @@ insert into public.comments (
   'd4000000-0000-4000-8000-000000000003',
   'Allowed commenter discussion', 'branch_members'
 );
+select extensions.pass('commenter can create a branch comment');
 
 reset role;
 select set_config('request.jwt.claim.sub', 'd4000000-0000-4000-8000-000000000004', true);
@@ -192,7 +194,8 @@ begin
   end;
 end;
 $$;
+select extensions.pass('viewer cannot create a branch comment');
 
 reset role;
-select 'PASS: Backend Block 4 AI setting, immutable identity, relationships, and role RLS' as result;
+select * from extensions.finish();
 rollback;

@@ -2,16 +2,8 @@
 
 begin;
 
-create function pg_temp.assert_true(condition boolean, message text)
-returns void
-language plpgsql
-as $function$
-begin
-  if not coalesce(condition, false) then
-    raise exception 'ASSERTION FAILED: %', message;
-  end if;
-end;
-$function$;
+create extension if not exists pgtap with schema extensions;
+select extensions.plan(21);
 
 insert into auth.users (
   id,
@@ -63,7 +55,7 @@ values
     now()
   );
 
-select pg_temp.assert_true(
+select extensions.ok(
   (select count(*) = 3 from public.profiles),
   'auth trigger should create three profiles'
 );
@@ -110,7 +102,7 @@ select
   'parent',
   public.confirm_branch_draft('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1');
 
-select pg_temp.assert_true(
+select extensions.ok(
   (
     select (result ->> 'already_confirmed')::boolean = false
     from confirmation_results
@@ -119,7 +111,7 @@ select pg_temp.assert_true(
   'first confirmation should create a branch'
 );
 
-select pg_temp.assert_true(
+select extensions.ok(
   (
     select
       branch.original_idea_locked_at is not null
@@ -134,7 +126,7 @@ select pg_temp.assert_true(
   'confirmed starting branch should be locked and have no parent'
 );
 
-select pg_temp.assert_true(
+select extensions.ok(
   (
     select count(*) = 1
     from public.branch_summaries summary
@@ -223,7 +215,7 @@ select
   'child',
   public.confirm_branch_draft('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa2');
 
-select pg_temp.assert_true(
+select extensions.ok(
   (
     select child.parent_branch_id = parent.id
     from public.branches child
@@ -242,7 +234,7 @@ select pg_temp.assert_true(
   'subbranch should preserve direct parent ancestry'
 );
 
-select pg_temp.assert_true(
+select extensions.ok(
   (
     select count(*) = 1
     from public.branch_links link
@@ -262,7 +254,7 @@ select pg_temp.assert_true(
   'linked branch should be distinct from ancestry and import an approved summary'
 );
 
-select pg_temp.assert_true(
+select extensions.ok(
   (
     select count(*) = 1
     from public.ai_contributions contribution
@@ -278,7 +270,7 @@ select pg_temp.assert_true(
   'AI contribution should remain attributed and approved'
 );
 
-select pg_temp.assert_true(
+select extensions.ok(
   (
     select jsonb_array_length(result -> 'invitations') = 1
     from confirmation_results
@@ -306,7 +298,7 @@ select public.accept_collaboration_invite(
   )
 );
 
-select pg_temp.assert_true(
+select extensions.ok(
   (
     select count(*) = 1
     from public.branch_collaborators collaborator
@@ -321,7 +313,7 @@ select pg_temp.assert_true(
   'accepted invitation should create viewer membership'
 );
 
-select pg_temp.assert_true(
+select extensions.ok(
   (
     select count(*) = 1
     from public.activity_events event
@@ -347,7 +339,7 @@ select set_config(
   true
 );
 
-select pg_temp.assert_true(
+select extensions.ok(
   (
     select
       (public.confirm_branch_draft('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa2')
@@ -382,6 +374,7 @@ begin
   end;
 end;
 $test$;
+select extensions.pass('confirmed branch identity cannot be rewritten');
 
 do $test$
 begin
@@ -404,6 +397,7 @@ begin
   end;
 end;
 $test$;
+select extensions.pass('approved human summary cannot be overwritten');
 
 do $test$
 declare
@@ -439,6 +433,7 @@ begin
   end;
 end;
 $test$;
+select extensions.pass('duplicate branch relationship is rejected');
 
 do $test$
 declare
@@ -485,6 +480,7 @@ begin
   end;
 end;
 $test$;
+select extensions.pass('cross-branch comment target is rejected');
 
 insert into public.workspace_items (
   id,
@@ -542,7 +538,7 @@ select set_config(
   true
 );
 
-select pg_temp.assert_true(
+select extensions.ok(
   (
     select count(*) = 0
     from public.branches
@@ -555,7 +551,7 @@ select pg_temp.assert_true(
   'outsider should not see the private branch'
 );
 
-select pg_temp.assert_true(
+select extensions.ok(
   (
     select count(*) = 1
     from public.workspace_items
@@ -577,7 +573,7 @@ select set_config(
   true
 );
 
-select pg_temp.assert_true(
+select extensions.ok(
   (
     select count(*) = 1
     from public.branches
@@ -615,6 +611,7 @@ begin
   end;
 end;
 $test$;
+select extensions.pass('viewer cannot create a comment');
 
 reset role;
 set local role anon;
@@ -625,7 +622,7 @@ select set_config(
   true
 );
 
-select pg_temp.assert_true(
+select extensions.ok(
   (
     select count(*) = 1
     from public.branches
@@ -634,7 +631,7 @@ select pg_temp.assert_true(
   'anonymous readers should see the public branch'
 );
 
-select pg_temp.assert_true(
+select extensions.ok(
   (
     select count(*) = 0
     from public.branches
@@ -645,6 +642,6 @@ select pg_temp.assert_true(
 
 reset role;
 
-select 'PASS: database foundation behavior and RLS checks completed' as result;
+select * from extensions.finish();
 
 rollback;

@@ -2,16 +2,8 @@
 
 begin;
 
-create function pg_temp.assert_true(condition boolean, message text)
-returns void
-language plpgsql
-as $function$
-begin
-  if not coalesce(condition, false) then
-    raise exception 'ASSERTION FAILED: %', message;
-  end if;
-end;
-$function$;
+create extension if not exists pgtap with schema extensions;
+select extensions.plan(14);
 
 insert into auth.users (
   id, aud, role, email, encrypted_password, email_confirmed_at,
@@ -77,12 +69,12 @@ values (
   public.confirm_branch_draft('b2000000-0000-4000-8000-000000000010')
 );
 
-select pg_temp.assert_true(
+select extensions.ok(
   (select not (result ->> 'already_confirmed')::boolean from block2_results where label = 'main'),
   'first confirmation should create the main branch'
 );
 
-select pg_temp.assert_true(
+select extensions.ok(
   (
     select branch.parent_branch_id is null
       and branch.original_idea_locked_at is not null
@@ -94,7 +86,7 @@ select pg_temp.assert_true(
   'main branch identity, original idea, and origin should be permanently locked'
 );
 
-select pg_temp.assert_true(
+select extensions.ok(
   (
     select count(*) = 1
     from public.branch_collaborators member
@@ -105,7 +97,7 @@ select pg_temp.assert_true(
   'confirmation should create exactly one owner membership'
 );
 
-select pg_temp.assert_true(
+select extensions.ok(
   (
     select count(*) = 1
     from public.branch_summaries summary
@@ -117,7 +109,7 @@ select pg_temp.assert_true(
   'confirmation should create one current approved short summary'
 );
 
-select pg_temp.assert_true(
+select extensions.ok(
   (
     select count(*) = 1
     from public.ai_contributions contribution
@@ -133,7 +125,7 @@ values (
   public.confirm_branch_draft('b2000000-0000-4000-8000-000000000010')
 );
 
-select pg_temp.assert_true(
+select extensions.ok(
   (
     select (repeat.result ->> 'already_confirmed')::boolean
       and repeat.result ->> 'branch_id' = main.result ->> 'branch_id'
@@ -176,7 +168,7 @@ values (
   public.confirm_branch_draft('b2000000-0000-4000-8000-000000000011')
 );
 
-select pg_temp.assert_true(
+select extensions.ok(
   (
     select child.parent_branch_id = parent.id
     from public.branches child
@@ -187,7 +179,7 @@ select pg_temp.assert_true(
   'subbranch confirmation should preserve its direct parent relationship'
 );
 
-select pg_temp.assert_true(
+select extensions.ok(
   (
     select count(*) = 1
     from public.branch_links link
@@ -205,7 +197,7 @@ select set_config(
   true
 );
 
-select pg_temp.assert_true(
+select extensions.ok(
   not public.can_view_branch(
     (select (result ->> 'branch_id')::uuid from block2_results where label = 'child')
   ),
@@ -216,7 +208,7 @@ select public.accept_collaboration_invite(
   (select result -> 'invitations' -> 0 ->> 'token' from block2_results where label = 'child')
 );
 
-select pg_temp.assert_true(
+select extensions.ok(
   public.can_view_branch(
     (select (result ->> 'branch_id')::uuid from block2_results where label = 'child')
   ),
@@ -240,7 +232,7 @@ select 'decline', public.create_collaboration_invite(
   now() + interval '1 day'
 );
 
-select pg_temp.assert_true(
+select extensions.ok(
   (
     select invite.token_hash <> result ->> 'token'
     from invitation_results request
@@ -261,7 +253,7 @@ select public.decline_collaboration_invite(
   (select result ->> 'token' from invitation_results where label = 'decline')
 );
 
-select pg_temp.assert_true(
+select extensions.ok(
   (
     select invite.status = 'declined'
       and not exists (
@@ -296,7 +288,7 @@ select public.revoke_collaboration_invite(
   (select (result ->> 'invitation_id')::uuid from invitation_results where label = 'revoke')
 );
 
-select pg_temp.assert_true(
+select extensions.ok(
   (
     select status = 'revoked'
     from public.collaboration_invites
@@ -322,6 +314,7 @@ begin
 end;
 $block$;
 
-select 'PASS: Backend Block 2 confirmation and invitation behavior completed' as result;
+select extensions.pass('confirmed branch original idea and origin remain immutable');
+select * from extensions.finish();
 
 rollback;
