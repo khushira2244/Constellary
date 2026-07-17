@@ -494,6 +494,7 @@ export type Database = {
       }
       branches: {
         Row: {
+          ai_enabled: boolean
           archived_at: string | null
           confirmed_from_draft_id: string | null
           created_at: string
@@ -511,6 +512,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          ai_enabled?: boolean
           archived_at?: string | null
           confirmed_from_draft_id?: string | null
           created_at?: string
@@ -528,6 +530,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          ai_enabled?: boolean
           archived_at?: string | null
           confirmed_from_draft_id?: string | null
           created_at?: string
