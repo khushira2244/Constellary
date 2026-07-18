@@ -20,12 +20,24 @@ import {
   saveDraftSnapshotAction,
 } from "./actions";
 
-const steps = [
+const mainSteps = [
   { id: "origin", label: "Origin" },
   { id: "originalIdea", label: "Original Idea" },
   { id: "title", label: "Title" },
   { id: "shortSummary", label: "Short Summary" },
   { id: "previousWork", label: "Previous Work" },
+  { id: "people", label: "People" },
+  { id: "privacyAndAI", label: "Privacy and AI Role" },
+  { id: "review", label: "Review" },
+] as const;
+
+const subbranchSteps = [
+  { id: "parentContext", label: "Parent Context" },
+  { id: "branchTopic", label: "Branch Topic" },
+  { id: "directionReason", label: "Why This Direction" },
+  { id: "title", label: "Title" },
+  { id: "shortSummary", label: "Short Summary" },
+  { id: "previousWork", label: "Related Work" },
   { id: "people", label: "People" },
   { id: "privacyAndAI", label: "Privacy and AI Role" },
   { id: "review", label: "Review" },
@@ -64,17 +76,35 @@ function text(value: string | null) {
   return value ?? "";
 }
 
-export function CreationWorkspace({ draft }: { draft: BranchDraft }) {
+type ParentContext = {
+  id: string;
+  title: string;
+  summary: string | null;
+  rootId: string;
+};
+
+export function CreationWorkspace({
+  draft,
+  parentContext,
+}: {
+  draft: BranchDraft;
+  parentContext?: ParentContext;
+}) {
   const router = useRouter();
+  const activeSteps = parentContext ? subbranchSteps : mainSteps;
   const initialProgress = jsonObject(draft.creation_progress);
+  const originDetails = jsonObject(draft.origin_details);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [branchTopic, setBranchTopic] = useState(
+    typeof originDetails.branch_topic === "string" ? originDetails.branch_topic : "",
+  );
   const [title, setTitle] = useState(text(draft.title));
   const [originalIdea, setOriginalIdea] = useState(text(draft.original_idea));
   const [shortSummary, setShortSummary] = useState(text(draft.short_summary));
   const [privacy, setPrivacy] = useState<Enums<"privacy_level">>(draft.privacy);
   const [aiRole, setAIRole] = useState<IntendedAIRole>(initialAIRole(initialProgress));
   const [completed, setCompleted] = useState<Record<string, boolean>>(() =>
-    Object.fromEntries(steps.map(({ id }) => [id, initialProgress[id] === true])),
+    Object.fromEntries(activeSteps.map(({ id }) => [id, initialProgress[id] === true])),
   );
   const [saveState, setSaveState] = useState<SaveState>("saved");
   const [error, setError] = useState<string | null>(null);
@@ -89,12 +119,16 @@ export function CreationWorkspace({ draft }: { draft: BranchDraft }) {
     privacy,
     aiRole,
     progress: completed,
-  }), [aiRole, completed, originalIdea, privacy, shortSummary, title]);
+    branchTopic,
+  }), [aiRole, branchTopic, completed, originalIdea, privacy, shortSummary, title]);
 
   function validationFor(index: number): string | null {
-    if (index === 1 && !originalIdea.trim()) return "Describe your original idea before continuing.";
-    if (index === 2 && !title.trim()) return "Add a concise title before continuing.";
-    if (index === 3 && !shortSummary.trim()) return "Add the short summary before continuing.";
+    const step = activeSteps[index]?.id;
+    if (step === "originalIdea" && !originalIdea.trim()) return "Describe your original idea before continuing.";
+    if (step === "branchTopic" && !branchTopic.trim()) return "Describe this branch topic before continuing.";
+    if (step === "directionReason" && !originalIdea.trim()) return "Explain why this direction exists before continuing.";
+    if (step === "title" && !title.trim()) return "Add a concise title before continuing.";
+    if (step === "shortSummary" && !shortSummary.trim()) return "Add the short summary before continuing.";
     return null;
   }
 
@@ -122,7 +156,7 @@ export function CreationWorkspace({ draft }: { draft: BranchDraft }) {
     }
     const nextCompleted = {
       ...completed,
-      [steps[activeIndex].id]: true,
+      [activeSteps[activeIndex].id]: true,
     };
     setCompleted(nextCompleted);
     setNotice(null);
@@ -150,7 +184,8 @@ export function CreationWorkspace({ draft }: { draft: BranchDraft }) {
   function confirm() {
     if (confirmingRef.current) return;
     const missing = [
-      !originalIdea.trim() ? "original idea" : null,
+      !originalIdea.trim() ? (parentContext ? "direction rationale" : "original idea") : null,
+      parentContext && !branchTopic.trim() ? "branch topic" : null,
       !title.trim() ? "title" : null,
       !shortSummary.trim() ? "short summary" : null,
     ].filter(Boolean);
@@ -175,7 +210,7 @@ export function CreationWorkspace({ draft }: { draft: BranchDraft }) {
       }
       setSaveState("saved");
       if (result.branchId) {
-        router.replace(`/branches/${result.branchId}`);
+        router.replace(`/branches/${parentContext?.rootId ?? result.branchId}`);
       } else {
         confirmingRef.current = false;
         setError("Confirmation completed without returning a branch ID.");
@@ -194,7 +229,7 @@ export function CreationWorkspace({ draft }: { draft: BranchDraft }) {
             ← Back
           </button>
         </div>
-        <div className="topbar__title">New Branch</div>
+        <div className="topbar__title">{parentContext ? "New Subbranch" : "New Branch"}</div>
         <div className="topbar__right">
           <div className="topbar-actions">
             <SaveStatus state={saveState} />
@@ -205,7 +240,7 @@ export function CreationWorkspace({ draft }: { draft: BranchDraft }) {
 
       <main className="creation-shell">
         <StepIndicator
-          steps={steps}
+          steps={activeSteps}
           activeIndex={activeIndex}
           completed={completed}
           onSelect={(index) => goTo(index)}
@@ -213,22 +248,31 @@ export function CreationWorkspace({ draft }: { draft: BranchDraft }) {
 
         <div className="workspace">
           <div className="workspace__meta">
-            <span>Step {activeIndex + 1} of {steps.length}</span>
+            <span>Step {activeIndex + 1} of {activeSteps.length}</span>
             <SaveStatus state={saveState} />
           </div>
           <Panel className="creation-panel">
             <div className="step-content">
-              {activeIndex === 0 ? <OriginStep /> : null}
-              {activeIndex === 1 ? (
+              {activeSteps[activeIndex].id === "origin" ? <OriginStep /> : null}
+              {activeSteps[activeIndex].id === "parentContext" && parentContext ? (
+                <ParentContextStep context={parentContext} />
+              ) : null}
+              {activeSteps[activeIndex].id === "branchTopic" ? (
+                <BranchTopicStep value={branchTopic} onChange={setBranchTopic} />
+              ) : null}
+              {activeSteps[activeIndex].id === "originalIdea" ? (
                 <OriginalIdeaStep value={originalIdea} onChange={setOriginalIdea} />
               ) : null}
-              {activeIndex === 2 ? <TitleStep value={title} onChange={setTitle} /> : null}
-              {activeIndex === 3 ? (
+              {activeSteps[activeIndex].id === "directionReason" ? (
+                <DirectionReasonStep value={originalIdea} onChange={setOriginalIdea} />
+              ) : null}
+              {activeSteps[activeIndex].id === "title" ? <TitleStep value={title} onChange={setTitle} /> : null}
+              {activeSteps[activeIndex].id === "shortSummary" ? (
                 <SummaryStep value={shortSummary} onChange={setShortSummary} />
               ) : null}
-              {activeIndex === 4 ? <PreviousWorkStep /> : null}
-              {activeIndex === 5 ? <PeopleStep /> : null}
-              {activeIndex === 6 ? (
+              {activeSteps[activeIndex].id === "previousWork" ? <PreviousWorkStep subbranch={Boolean(parentContext)} /> : null}
+              {activeSteps[activeIndex].id === "people" ? <PeopleStep /> : null}
+              {activeSteps[activeIndex].id === "privacyAndAI" ? (
                 <PrivacyAIStep
                   privacy={privacy}
                   aiRole={aiRole}
@@ -236,8 +280,10 @@ export function CreationWorkspace({ draft }: { draft: BranchDraft }) {
                   onAIRole={setAIRole}
                 />
               ) : null}
-              {activeIndex === 7 ? (
+              {activeSteps[activeIndex].id === "review" ? (
                 <ReviewStep
+                  branchTopic={branchTopic}
+                  parentContext={parentContext}
                   title={title}
                   originalIdea={originalIdea}
                   shortSummary={shortSummary}
@@ -250,7 +296,7 @@ export function CreationWorkspace({ draft }: { draft: BranchDraft }) {
               {notice ? <p className="notice" role="status">{notice}</p> : null}
             </div>
 
-            {activeIndex < 7 ? (
+            {activeSteps[activeIndex].id !== "review" ? (
               <div className="panel-actions">
                 <Button
                   variant="ghost"
@@ -261,7 +307,7 @@ export function CreationWorkspace({ draft }: { draft: BranchDraft }) {
                 </Button>
                 <Button
                   disabled={saving}
-                  onClick={() => goTo(activeIndex + 1, true)}
+                  onClick={() => goTo(Math.min(activeIndex + 1, activeSteps.length - 1), true)}
                 >
                   {saving ? "Saving…" : "Continue →"}
                 </Button>
@@ -335,6 +381,64 @@ function OriginStep() {
   );
 }
 
+function ParentContextStep({ context }: { context: ParentContext }) {
+  return (
+    <>
+      <StepHeading
+        eyebrow="Parent Context"
+        title="This direction grows from an existing branch."
+        description="The parent relationship becomes direct ancestry. It is separate from linked research."
+      />
+      <div className="quiet-card">
+        <strong>{context.title}</strong>
+        <span>{context.summary ?? "No approved parent summary is available yet."}</span>
+      </div>
+      <p className="notice">This parent is preserved and cannot be changed after confirmation.</p>
+    </>
+  );
+}
+
+function BranchTopicStep({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  return (
+    <>
+      <StepHeading
+        eyebrow="Branch Topic"
+        title="What specific direction will this subbranch explore?"
+        description="Name the research topic itself. This is not a second Original Idea."
+      />
+      <Field label="Branch topic" hint="Describe the focused topic in one or two sentences.">
+        <Textarea
+          autoFocus
+          className="textarea--compact"
+          maxLength={2_000}
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+        />
+      </Field>
+    </>
+  );
+}
+
+function DirectionReasonStep({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  return (
+    <>
+      <StepHeading
+        eyebrow="Why This Direction Exists"
+        title="Explain why this direction grows from its parent."
+        description="Capture the research reason for branching: a question, limitation, observation, or promising extension."
+      />
+      <Field label="Direction rationale">
+        <Textarea
+          autoFocus
+          maxLength={50_000}
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+        />
+      </Field>
+    </>
+  );
+}
+
 function OriginalIdeaStep({ value, onChange }: { value: string; onChange: (value: string) => void }) {
   return (
     <>
@@ -399,15 +503,20 @@ function SummaryStep({ value, onChange }: { value: string; onChange: (value: str
   );
 }
 
-function PreviousWorkStep() {
+function PreviousWorkStep({ subbranch = false }: { subbranch?: boolean }) {
   return (
     <>
       <StepHeading
         eyebrow="Previous Work"
-        title="This idea starts independently."
-        description="Branch ancestry and linked research stay separate. Both can be added in the next creation workspace."
+        title={subbranch ? "Keep related work separate from ancestry." : "This idea starts independently."}
+        description={subbranch
+          ? "The selected parent already defines ancestry. Other references remain linked research."
+          : "Branch ancestry and linked research stay separate. Both can be added in the next creation workspace."}
       />
-      <div className="quiet-card"><strong>No parent branch</strong><span>This is a fresh main branch.</span></div>
+      <div className="quiet-card">
+        <strong>{subbranch ? "Parent already selected" : "No parent branch"}</strong>
+        <span>{subbranch ? "Direct ancestry is preserved from the chosen branch." : "This is a fresh main branch."}</span>
+      </div>
       <div className="quiet-card"><strong>No linked research yet</strong><span>Add later in the Creation Workspace.</span></div>
     </>
   );
@@ -477,6 +586,8 @@ function PrivacyAIStep({
 }
 
 function ReviewStep({
+  branchTopic,
+  parentContext,
   title,
   originalIdea,
   shortSummary,
@@ -484,6 +595,8 @@ function ReviewStep({
   aiRole,
   onEdit,
 }: {
+  branchTopic: string;
+  parentContext?: ParentContext;
   title: string;
   originalIdea: string;
   shortSummary: string;
@@ -491,23 +604,37 @@ function ReviewStep({
   aiRole: IntendedAIRole;
   onEdit: (index: number) => void;
 }) {
-  const rows = [
-    ["Origin", "Fresh idea", 0],
-    ["Original idea", originalIdea || "Not completed", 1],
-    ["Title", title || "Not completed", 2],
-    ["Short summary", shortSummary || "Not completed", 3],
-    ["Previous work", "No parent branch · No linked research yet", 4],
-    ["People", "Just me · Invite collaborators later", 5],
-    ["Privacy", privacyOptions.find((option) => option.value === privacy)?.label ?? privacy, 6],
-    ["AI role", aiOptions.find((option) => option.value === aiRole)?.label ?? aiRole, 6],
-  ] as const;
+  const rows: readonly (readonly [string, string, number])[] = parentContext
+    ? [
+        ["Parent", parentContext.title, 0],
+        ["Branch topic", branchTopic || "Not completed", 1],
+        ["Why this direction exists", originalIdea || "Not completed", 2],
+        ["Title", title || "Not completed", 3],
+        ["Short summary", shortSummary || "Not completed", 4],
+        ["Related work", "No linked research yet", 5],
+        ["People", "Just me · Invite collaborators later", 6],
+        ["Privacy", privacyOptions.find((option) => option.value === privacy)?.label ?? privacy, 7],
+        ["AI role", aiOptions.find((option) => option.value === aiRole)?.label ?? aiRole, 7],
+      ]
+    : [
+        ["Origin", "Fresh idea", 0],
+        ["Original idea", originalIdea || "Not completed", 1],
+        ["Title", title || "Not completed", 2],
+        ["Short summary", shortSummary || "Not completed", 3],
+        ["Previous work", "No parent branch · No linked research yet", 4],
+        ["People", "Just me · Invite collaborators later", 5],
+        ["Privacy", privacyOptions.find((option) => option.value === privacy)?.label ?? privacy, 6],
+        ["AI role", aiOptions.find((option) => option.value === aiRole)?.label ?? aiRole, 6],
+      ];
 
   return (
     <>
       <StepHeading
         eyebrow="Review"
-        title="Confirm the branch’s starting point."
-        description="After confirmation, the original idea and origin become immutable provenance."
+        title={parentContext ? "Confirm this new research direction." : "Confirm the branch’s starting point."}
+        description={parentContext
+          ? "After confirmation, this subbranch remains connected to its selected parent."
+          : "After confirmation, the original idea and origin become immutable provenance."}
       />
       <dl className="review-list">
         {rows.map(([label, value, index]) => (

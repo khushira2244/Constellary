@@ -25,7 +25,7 @@ export async function proxy(request: NextRequest) {
   const { data } = await supabase.auth.getUser();
   const pathname = request.nextUrl.pathname;
   const isAuthRoute = pathname === "/login" || pathname === "/signup";
-  const isProtectedRoute = pathname.startsWith("/branches");
+  const isProtectedRoute = pathname === "/" || pathname.startsWith("/branches");
 
   if (!data.user && isProtectedRoute) {
     const loginUrl = request.nextUrl.clone();
@@ -50,5 +50,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/branches/:path*", "/login", "/signup"],
+  matcher: ["/", "/branches/:path*", "/login", "/signup"],
 };

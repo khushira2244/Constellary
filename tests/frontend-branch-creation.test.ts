@@ -44,4 +44,14 @@ describe("fresh main-branch creation model", () => {
     expect(progress.originalIdea).toBe(false);
     expect(progress.shortSummary).toBe(false);
   });
+
+  test("tracks a subbranch topic separately from its direction rationale", () => {
+    const progress = progressWithAIRole({
+      ...snapshot,
+      branchTopic: "Memory signal compression",
+      originalIdea: "This direction tests a lower-dimensional representation.",
+    });
+    expect(progress.branchTopic).toBe(true);
+    expect(progress.originalIdea).toBe(true);
+  });
 });

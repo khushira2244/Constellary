@@ -209,3 +209,34 @@ export async function getEditableBranchSettings(
   };
   return ok(settings);
 }
+
+export async function deleteConfirmedBranch(
+  branchId: string,
+  client: AppSupabaseClient,
+) {
+  const user = await requireCurrentUser(client);
+  if (!user.ok) return user;
+  const branch = await requireBranchAccess(branchId, "manage", client);
+  if (!branch.ok) return branch;
+  if (branch.data.owner_id !== user.data.id) {
+    return fail("FORBIDDEN", "Only the branch owner can delete this branch.");
+  }
+  const result = await client
+    .from("branches")
+    .delete()
+    .eq("id", branch.data.id)
+    .eq("owner_id", user.data.id)
+    .select("id")
+    .maybeSingle();
+  if (result.error) {
+    if (result.error.code === "23503") {
+      return fail(
+        "CONFLICT",
+        "This branch is preserved by confirmed-draft, descendant, or provenance references and cannot be deleted safely.",
+      );
+    }
+    return databaseFailure(result.error.message);
+  }
+  if (!result.data) return fail("FORBIDDEN", "The branch could not be deleted.");
+  return ok(result.data);
+}

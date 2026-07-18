@@ -36,6 +36,7 @@ export async function createAIContributionDraft(
   inputContext: string,
   output: AIOutput,
   client: AppSupabaseClient,
+  metadata?: { modelName?: string },
 ) {
   const user = await requireCurrentUser(client);
   if (!user.ok) return user;
@@ -47,7 +48,7 @@ export async function createAIContributionDraft(
     target_type: "branch",
     target_id: branchId,
     contribution_type: contributionTypeMap[contributionType],
-    model_name: "pending-openai-integration",
+    model_name: metadata?.modelName?.trim() || "pending-openai-integration",
     input_context_summary: inputContext.trim(),
     generated_content: output,
     requested_by: user.data.id,

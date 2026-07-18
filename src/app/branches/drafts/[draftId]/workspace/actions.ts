@@ -1,6 +1,9 @@
 "use server";
 
-import { confirmMainBranchDraft } from "@/features/branch-confirmation/services";
+import {
+  confirmMainBranchDraft,
+  confirmSubbranchDraft,
+} from "@/features/branch-confirmation/services";
 import {
   progressWithAIRole,
   type DraftActionResult,
@@ -13,6 +16,7 @@ import {
   updateBranchDraftProgress,
   updateBranchDraftShortSummary,
   updateBranchDraftTitle,
+  getBranchDraft,
 } from "@/features/branch-drafts/services";
 import type { ServiceResult } from "@/lib/services/result";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
@@ -28,8 +32,16 @@ async function saveSnapshot(
   snapshot: DraftSnapshot,
 ): Promise<DraftActionResult> {
   const client = await createServerSupabaseClient();
+  const draft = await getBranchDraft(draftId, client);
+  if (!draft.ok) return failure(draft);
+  const subbranch = Boolean(draft.data.parent_branch_id);
   const updates = [
-    await updateBranchDraftOrigin(draftId, { originType: "own_idea" }, client),
+    await updateBranchDraftOrigin(draftId, {
+      originType: subbranch ? "existing_branch" : "own_idea",
+      ...(subbranch
+        ? { originDetails: { branch_topic: snapshot.branchTopic?.trim() ?? "" } }
+        : {}),
+    }, client),
     await updateBranchDraftOriginalIdea(draftId, snapshot.originalIdea, client),
     await updateBranchDraftTitle(draftId, snapshot.title, client),
     await updateBranchDraftShortSummary(draftId, snapshot.shortSummary, client),
@@ -61,7 +73,11 @@ export async function confirmDraftAction(
   if (!saved.ok) return saved;
 
   const client = await createServerSupabaseClient();
-  const confirmed = await confirmMainBranchDraft(draftId, client);
+  const draft = await getBranchDraft(draftId, client);
+  if (!draft.ok) return failure(draft);
+  const confirmed = draft.data.parent_branch_id
+    ? await confirmSubbranchDraft(draftId, client)
+    : await confirmMainBranchDraft(draftId, client);
   if (!confirmed.ok) return failure(confirmed);
   return {
     ok: true,

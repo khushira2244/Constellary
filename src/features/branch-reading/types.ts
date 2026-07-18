@@ -122,5 +122,10 @@ export type EditableBranchView = BranchPageData & {
   capabilities: BranchCapabilities & { canEdit: true };
 };
 
+export type BranchTreeNode = {
+  data: BranchPageData;
+  children: BranchTreeNode[];
+};
+
 export type QueryFailure = { message: string; details?: string; hint?: string; code?: string };
 export type JsonObject = Record<string, Json>;

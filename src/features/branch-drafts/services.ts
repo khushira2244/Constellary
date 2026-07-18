@@ -128,6 +128,29 @@ export async function createSubbranchDraft(
   return ok(data);
 }
 
+export async function getLatestEditableSubbranchDraft(
+  parentBranchId: string,
+  client: AppSupabaseClient,
+): Promise<ServiceResult<BranchDraft | null>> {
+  const parentId = parse(uuidSchema, parentBranchId);
+  if (!parentId.ok) return parentId;
+  const user = await requireCurrentUser(client);
+  if (!user.ok) return user;
+  const parent = await requireBranchAccess(parentId.data, "view", client);
+  if (!parent.ok) return parent;
+  const { data, error } = await client
+    .from("branch_drafts")
+    .select("*")
+    .eq("creator_id", user.data.id)
+    .eq("parent_branch_id", parent.data.id)
+    .is("confirmed_branch_id", null)
+    .order("updated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) return databaseFailure(error.message);
+  return ok(data);
+}
+
 export const getBranchDraft = ownedDraft;
 
 export async function updateBranchDraftTitle(

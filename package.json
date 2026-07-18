@@ -7,6 +7,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:integration:local": "node scripts/run-local-integration.mjs",
+    "seed:demo": "node --env-file-if-exists=.env.local --experimental-strip-types scripts/seed-demo.ts",
     "dev": "next dev",
     "build": "next build",
     "start": "next start"
@@ -15,6 +16,7 @@
     "@supabase/ssr": "latest",
     "@supabase/supabase-js": "latest",
     "next": "latest",
+    "openai": "^6.48.0",
     "react": "latest",
     "react-dom": "latest",
     "zod": "latest"

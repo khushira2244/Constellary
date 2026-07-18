@@ -26,6 +26,7 @@ import type {
   BranchPathItem,
   BranchPrivacyAndStatus,
   BranchSummaryView,
+  BranchTreeNode,
   BranchWorkspaceNavigationData,
   EditableBranchView,
   LinkedBranchView,
@@ -371,4 +372,49 @@ export async function getEditableBranchView(
   if (!access.data.canEdit) return fail("FORBIDDEN", "Edit access is required.");
   const data = await compose(branch.data, client);
   return data.ok ? ok(data.data as EditableBranchView) : data;
+}
+
+export async function getRootBranchId(
+  branchId: string,
+  client: AppSupabaseClient,
+): Promise<ServiceResult<string>> {
+  const path = await getBranchPath(branchId, client);
+  if (!path.ok) return path;
+  const root = path.data[0];
+  return root ? ok(root.id) : fail("NOT_FOUND", "The branch ancestry is unavailable.");
+}
+
+export async function getBranchTreePageData(
+  rootBranchId: string,
+  client: AppSupabaseClient,
+  maximumBranches = 60,
+): Promise<ServiceResult<BranchTreeNode>> {
+  const root = await getBranchPageData(rootBranchId, client);
+  if (!root.ok) return root;
+  if (root.data.branch.parent_branch_id) {
+    return fail("VALIDATION_ERROR", "Branch tree reads must start at a root branch.");
+  }
+
+  const visited = new Set<string>();
+  let count = 0;
+  async function build(data: BranchPageData): Promise<ServiceResult<BranchTreeNode>> {
+    if (visited.has(data.branch.id)) {
+      return fail("DATABASE_ERROR", "A cycle was detected in branch ancestry.");
+    }
+    if (++count > maximumBranches) {
+      return fail("DATABASE_ERROR", "This branch tree is too large to render safely.");
+    }
+    visited.add(data.branch.id);
+    const children: BranchTreeNode[] = [];
+    for (const child of data.children) {
+      const childData = await getBranchPageData(child.id, client);
+      if (!childData.ok) return childData;
+      const node = await build(childData.data);
+      if (!node.ok) return node;
+      children.push(node.data);
+    }
+    return ok({ data, children });
+  }
+
+  return build(root.data);
 }

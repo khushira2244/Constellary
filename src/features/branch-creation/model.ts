@@ -19,6 +19,7 @@ export type DraftSnapshot = {
   privacy: Enums<"privacy_level">;
   aiRole: IntendedAIRole;
   progress: DraftProgress;
+  branchTopic?: string;
 };
 
 export type DraftActionResult =
@@ -32,6 +33,7 @@ export function progressWithAIRole(snapshot: DraftSnapshot): DraftProgress {
     originalIdea: Boolean(snapshot.originalIdea.trim()),
     title: Boolean(snapshot.title.trim()),
     shortSummary: Boolean(snapshot.shortSummary.trim()),
+    branchTopic: Boolean(snapshot.branchTopic?.trim()),
     previousWork: true,
     people: true,
     privacyAndAI: true,
