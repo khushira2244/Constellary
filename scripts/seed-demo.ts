@@ -165,6 +165,31 @@ async function main() {
     branch(ids.evidenceGraph, "Distributed Research Evidence Graph", "Can distributed evidence retain attribution while research teams change?", null, "archived_with_learning", "public", at(390), {}, at(300)),
   ]);
 
+  const featuredRows = [
+    { user_id: owner.id, branch_id: ids.featured, position: 0, created_at: at(2, 9) },
+    { user_id: owner.id, branch_id: ids.notebooks, position: 1, created_at: at(2, 10) },
+    { user_id: owner.id, branch_id: ids.traceability, position: 2, created_at: at(2, 11) },
+  ];
+  const existingFeatured = await admin
+    .from("featured_branches")
+    .select("branch_id")
+    .eq("user_id", owner.id)
+    .in("branch_id", featuredRows.map((row) => row.branch_id));
+  if (existingFeatured.error) throw existingFeatured.error;
+  const existingFeaturedIds = new Set(
+    (existingFeatured.data ?? []).map((row) => row.branch_id),
+  );
+  const featuredResult = await admin
+    .from("featured_branches")
+    .upsert(featuredRows, { onConflict: "user_id,branch_id" });
+  if (featuredResult.error) throw featuredResult.error;
+  bucket("featured_branches").created += featuredRows.filter(
+    (row) => !existingFeaturedIds.has(row.branch_id),
+  ).length;
+  bucket("featured_branches").updated += featuredRows.filter(
+    (row) => existingFeaturedIds.has(row.branch_id),
+  ).length;
+
   const visibleBranches = [
     ids.featured, ids.decay, ids.handover, ids.compression, ids.nasa,
     ids.notebooks, ids.traceability, ids.cybersecurity, ids.evidenceGraph,
@@ -240,6 +265,21 @@ async function main() {
       id: uuid(400, 2), source_branch_id: ids.handover, target_branch_id: ids.traceability,
       relationship_type: "references", relationship_note: "Decision traceability supports accountable handover.",
       imported_summary_id: uuid(100, 13), created_by: owner.id, created_at: at(5),
+    },
+    {
+      id: uuid(400, 3), source_branch_id: ids.featured, target_branch_id: ids.traceability,
+      relationship_type: "references", relationship_note: "Decision traceability provides a comparison for mission-memory accountability.",
+      imported_summary_id: uuid(100, 13), created_by: owner.id, created_at: at(4),
+    },
+    {
+      id: uuid(400, 4), source_branch_id: ids.featured, target_branch_id: ids.evidenceGraph,
+      relationship_type: "inspired_by", relationship_note: "Distributed evidence informs how memory provenance can survive team changes.",
+      imported_summary_id: uuid(100, 17), created_by: owner.id, created_at: at(3),
+    },
+    {
+      id: uuid(400, 5), source_branch_id: ids.cybersecurity, target_branch_id: ids.featured,
+      relationship_type: "references", relationship_note: "Threat-assumption provenance references the mission-memory model.",
+      imported_summary_id: uuid(100, 1), created_by: owner.id, created_at: at(2),
     },
   ]);
 
@@ -328,6 +368,16 @@ async function main() {
     if (count.error) throw count.error;
     counts[table] = count.count ?? 0;
   }
+  const featuredCount = await admin
+    .from("featured_branches")
+    .select("*", { count: "exact", head: true })
+    .eq("user_id", owner.id)
+    .in("branch_id", featuredRows.map((row) => row.branch_id));
+  if (featuredCount.error) throw featuredCount.error;
+  counts.featured_branches = featuredCount.count ?? 0;
+  if (counts.featured_branches !== 3) {
+    throw new Error(`Expected exactly 3 owner featured branches, found ${counts.featured_branches}.`);
+  }
 
   const children = await admin.from("branches").select("id,parent_branch_id")
     .in("id", tree);
@@ -351,7 +401,7 @@ function seededIdsFor(table: string) {
     profiles: [],
     branch_drafts: [ids.draft],
     branches: Object.values(ids).filter((id) => id !== ids.draft),
-    branch_links: [uuid(400, 1), uuid(400, 2)],
+    branch_links: Array.from({ length: 5 }, (_, index) => uuid(400, index + 1)),
     branch_summaries: Array.from({ length: 18 }, (_, index) => uuid(100, index + 1)),
     workspace_items: Array.from({ length: 8 }, (_, index) => uuid(200, index + 1)),
     sources: Array.from({ length: 6 }, (_, index) => uuid(300, index + 1)),

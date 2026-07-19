@@ -72,7 +72,17 @@ export async function readLinks(branchId: string, client: AppSupabaseClient) {
     .select(branchBasicColumns)
     .in("id", ids);
   if (branchError || !branches) return { data: null, error: branchError };
+  const { data: summaries, error: summaryError } = await client
+    .from("branch_summaries")
+    .select("branch_id,content")
+    .in("branch_id", ids)
+    .eq("summary_type", "short")
+    .eq("is_current", true);
+  if (summaryError) return { data: null, error: summaryError };
   const byId = new Map(branches.map((branch) => [branch.id, branch]));
+  const summariesByBranch = new Map(
+    (summaries ?? []).map((summary) => [summary.branch_id, summary.content]),
+  );
   const result = links.flatMap((link): LinkedBranchView[] => {
     const outgoing = link.source_branch_id === branchId;
     const linkedId = outgoing ? link.target_branch_id : link.source_branch_id;
@@ -84,6 +94,8 @@ export async function readLinks(branchId: string, client: AppSupabaseClient) {
       relationshipNote: link.relationship_note,
       branch: linked,
       importedSummaryId: link.imported_summary_id,
+      shortSummary: summariesByBranch.get(linked.id) ?? null,
+      createdAt: link.created_at,
     }] : [];
   });
   return { data: result, error: null };

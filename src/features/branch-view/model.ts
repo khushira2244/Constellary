@@ -26,6 +26,13 @@ export function firstSummaryParagraph(value: string | null | undefined) {
   return value?.split(/\n\s*\n/)[0]?.trim() || "No approved summary has been added yet.";
 }
 
+export function connectorThickness(linkCount: number) {
+  if (linkCount >= 6) return 4;
+  if (linkCount >= 3) return 3;
+  if (linkCount >= 1) return 2;
+  return 1;
+}
+
 export function flattenBranchTree(
   node: BranchTreeNode,
   depth = 0,

@@ -772,6 +772,42 @@ export type Database = {
           },
         ]
       }
+      featured_branches: {
+        Row: {
+          branch_id: string
+          created_at: string
+          position: number
+          user_id: string
+        }
+        Insert: {
+          branch_id: string
+          created_at?: string
+          position?: number
+          user_id: string
+        }
+        Update: {
+          branch_id?: string
+          created_at?: string
+          position?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "featured_branches_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "featured_branches_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null

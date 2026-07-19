@@ -1,13 +1,11 @@
 import Link from "next/link";
 
 import { AuthenticatedHeader } from "@/components/layout/authenticated-header";
-import { DeleteDraftForm } from "@/components/dashboard/delete-draft-form";
+import { FeatureBranchButton } from "@/components/branches/feature-branch-button";
 import { ErrorState } from "@/components/ui/feedback";
 import { safeArchiveFilters } from "@/features/dashboard/model";
 import { getDashboardData } from "@/features/dashboard/services";
-import type { DashboardBranch } from "@/features/dashboard/types";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
-import { createFreshMainBranch } from "./dashboard-actions";
 
 const date = (value: string) =>
   new Intl.DateTimeFormat("en", { day: "numeric", month: "short", year: "numeric" })
@@ -15,16 +13,6 @@ const date = (value: string) =>
 
 const statusLabel = (value: string) =>
   value.split("_").map((word) => word[0]?.toUpperCase() + word.slice(1)).join(" ");
-
-function BranchMetrics({ branch }: { branch: DashboardBranch }) {
-  return (
-    <div className="dashboard-card__metrics">
-      <span>⌘ {branch.linkedBranchCount} linked</span>
-      <span>♙ {branch.collaboratorCount} people</span>
-      <span>◫ {branch.commentCount} comments</span>
-    </div>
-  );
-}
 
 export default async function HomePage({
   searchParams,
@@ -38,125 +26,98 @@ export default async function HomePage({
 
   if (!result.ok) {
     return (
-      <>
+      <div className="home-atmosphere">
         <AuthenticatedHeader />
         <main className="centered-state">
           <ErrorState title="Could not load Home" message="Your accessible research could not be loaded safely. Please try again." />
         </main>
-      </>
+      </div>
     );
   }
   const data = result.data;
 
   return (
-    <>
+    <div className="home-atmosphere">
       <AuthenticatedHeader />
       <main className="dashboard-shell">
         {params.dashboardError ? (
           <div className="dashboard-alert">That action could not be completed. Your existing research was not changed.</div>
         ) : null}
 
-        <section className="dashboard-overview">
-          <div className="dashboard-overview__copy">
-            <span className="dashboard-kicker">Welcome back, {data.profileName}</span>
-            <h1>Proof of how work grows.</h1>
-            <p>Follow every direction, contribution, and decision without losing where the research began.</p>
+        <section className="profile-overview" id="profile">
+          <div className="profile-overview__avatar" aria-hidden={data.profile.avatarUrl ? undefined : true}>
+            {data.profile.avatarUrl
+              ? <span
+                  className="profile-avatar-image"
+                  role="img"
+                  aria-label={`${data.profile.displayName} profile`}
+                  style={{ backgroundImage: `url("${data.profile.avatarUrl}")` }}
+                />
+              : data.profile.displayName.slice(0, 1).toUpperCase()}
           </div>
-          <dl className="dashboard-stats">
-            <div><dt>{data.overview.mainBranches}</dt><dd>Main branches</dd></div>
-            <div><dt>{data.overview.totalBranches}</dt><dd>Accessible branches</dd></div>
-            <div><dt>{data.overview.collaborators}</dt><dd>Collaborators</dd></div>
-            <div><dt>{data.overview.linkedBranches}</dt><dd>Branch links</dd></div>
-            <div><dt>{data.overview.unfinishedDrafts}</dt><dd>Drafts</dd></div>
-          </dl>
-          <div className="dashboard-overview__actions">
-            <form action={createFreshMainBranch}>
-              <button className="button button--primary" type="submit">＋ Create Branch</button>
-            </form>
-            {data.featured ? (
-              <Link className="button button--secondary dashboard-button-link" href={`/branches/${data.featured.id}`}>
-                Open Featured Research
-              </Link>
+          <div className="profile-overview__body">
+            <h1>{data.profile.displayName}</h1>
+            <p className="profile-overview__username">@{data.profile.username}</p>
+            {data.profile.headline ? <p className="profile-overview__headline">{data.profile.headline}</p> : null}
+            {data.profile.bio ? <p className="profile-overview__bio">{data.profile.bio}</p> : null}
+            {data.profile.focusTags.length ? (
+              <div className="profile-focus" aria-label="Research focus">
+                {data.profile.focusTags.map((tag) => <span key={tag}>{tag}</span>)}
+              </div>
             ) : null}
+            <dl className="profile-counts" aria-label="Accessible research counts">
+              <div><dt>Branches</dt><dd>{data.profile.counts.accessibleBranches}</dd></div>
+              <div><dt>Collaborators</dt><dd>{data.profile.counts.collaborators}</dd></div>
+              <div><dt>Linked branches</dt><dd>{data.profile.counts.linkedBranches}</dd></div>
+            </dl>
           </div>
+          {data.profile.canEdit ? (
+            <Link
+              className="profile-edit-icon"
+              href="/profile"
+              aria-label="Edit Profile"
+              title="Edit Profile"
+            >
+              ✎
+            </Link>
+          ) : null}
         </section>
 
         <section className="dashboard-section">
           <header className="dashboard-section__heading">
-            <div><span className="dashboard-kicker">Primary research tree</span><h2>Featured Research</h2></div>
+            <div><span className="dashboard-kicker">Pinned by you</span><h2>Featured Branches</h2></div>
           </header>
-          {data.featured ? (
-            <article className="featured-research">
-              <div className="featured-research__accent" aria-hidden="true">✦</div>
-              <div className="featured-research__body">
-                <div className="dashboard-card__badges">
-                  <span className={`dashboard-badge dashboard-badge--${data.featured.status}`}>{statusLabel(data.featured.status)}</span>
-                  <span className="dashboard-badge">{statusLabel(data.featured.privacy)}</span>
-                </div>
-                <h3>{data.featured.title}</h3>
-                <p>{data.featured.summary ?? "No current short summary is available."}</p>
-                <BranchMetrics branch={data.featured} />
-              </div>
-              <dl className="featured-research__facts">
-                <div><dt>{data.featured.childCount}</dt><dd>visible directions</dd></div>
-                <div><dt>{date(data.featured.updatedAt)}</dt><dd>last meaningful update</dd></div>
-              </dl>
-              <div className="featured-research__actions">
-                <Link className="button button--primary dashboard-button-link" href={`/branches/${data.featured.id}`}>Open Branch</Link>
-                {data.featured.capabilities.canEdit ? (
-                  <Link className="button button--secondary dashboard-button-link" href={`/branches/${data.featured.id}/workspace`}>Open Workspace</Link>
-                ) : null}
-              </div>
-            </article>
-          ) : <div className="dashboard-empty">No accessible main branch is available yet.</div>}
-        </section>
-
-        <section className="dashboard-section">
-          <header className="dashboard-section__heading">
-            <div><span className="dashboard-kicker">Recently active</span><h2>Recent Work</h2></div>
-            <a href="#archive">View Archive ↓</a>
-          </header>
-          {data.recent.length ? (
-            <div className="recent-work-grid">
-              {data.recent.map((branch) => (
-                <article className="recent-card" key={branch.id}>
+          {data.featuredBranches.length ? (
+            <div className="featured-branch-grid">
+              {data.featuredBranches.map((branch) => (
+                <article className="featured-branch-card" key={branch.id}>
+                  <header>
+                    <div>
+                      <small>{branch.parentTitle ? `From ${branch.parentTitle}` : "Main branch"}</small>
+                      <h3>{branch.title}</h3>
+                    </div>
+                    <FeatureBranchButton branchId={branch.id} initialFeatured />
+                  </header>
+                  <p>{branch.summary ?? "No short summary."}</p>
                   <div className="dashboard-card__badges">
-                    <span className={`dashboard-badge dashboard-badge--${branch.status}`}>{statusLabel(branch.status)}</span>
-                    <span className="dashboard-badge">{statusLabel(branch.privacy)}</span>
+                    <i className={`dashboard-badge dashboard-badge--${branch.status}`}>{statusLabel(branch.status)}</i>
+                    <i className="dashboard-badge">{statusLabel(branch.privacy)}</i>
                   </div>
-                  <span className="recent-card__relationship">{branch.parentTitle ? `From ${branch.parentTitle}` : "Main branch"}</span>
-                  <h3>{branch.title}</h3>
-                  <p>{branch.summary ?? "No current short summary."}</p>
-                  <BranchMetrics branch={branch} />
-                  <footer><time>{date(branch.updatedAt)}</time><Link href={`/branches/${branch.id}`}>Open Branch →</Link></footer>
-                </article>
-              ))}
-            </div>
-          ) : <div className="dashboard-empty">No recent confirmed work is visible.</div>}
-        </section>
-
-        <section className="dashboard-section" id="drafts">
-          <header className="dashboard-section__heading">
-            <div><span className="dashboard-kicker">Private to you</span><h2>Unfinished Drafts</h2></div>
-          </header>
-          {data.drafts.length ? (
-            <div className="draft-list">
-              {data.drafts.map((draft) => (
-                <article className="draft-row" key={draft.id}>
-                  <div className="draft-row__mark" aria-hidden="true">◌</div>
-                  <div>
-                    <span>{draft.parentTitle ? `Subbranch draft · From ${draft.parentTitle}` : "Main branch draft"}</span>
-                    <h3>{draft.title}</h3>
-                    <small>Next: {draft.currentStep} · Updated {date(draft.updatedAt)}</small>
-                  </div>
-                  <div className="draft-row__actions">
-                    <Link className="button button--secondary dashboard-button-link" href={`/branches/drafts/${draft.id}/workspace`}>Resume</Link>
-                    <DeleteDraftForm draftId={draft.id} />
+                  <div className="featured-branch-card__footer">
+                    <span>{branch.linkedBranchCount} linked</span>
+                    <span>{branch.collaboratorCount} collaborators</span>
+                    <time>{date(branch.updatedAt)}</time>
+                    <Link href={`/branches/${branch.id}`}>Open Branch</Link>
                   </div>
                 </article>
               ))}
             </div>
-          ) : <div className="dashboard-empty">No unfinished drafts. A fresh direction can start whenever you are ready.</div>}
+          ) : (
+            <div className="featured-placeholder">
+              <span aria-hidden="true">☆</span>
+              <div><strong>No featured branches yet</strong><p>Feature important branches from Branch View to keep them here.</p></div>
+            </div>
+          )}
         </section>
 
         <section className="dashboard-lower" id="archive">
@@ -208,6 +169,6 @@ export default async function HomePage({
           </aside>
         </section>
       </main>
-    </>
+    </div>
   );
 }

@@ -40,9 +40,9 @@ export default async function BranchPage({
   }
 
   return (
-    <>
+    <div className="branch-atmosphere">
       <AuthenticatedHeader />
       <BranchView root={tree.data} />
-    </>
+    </div>
   );
 }

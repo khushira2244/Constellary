@@ -17,6 +17,8 @@ export type LinkedBranchView = {
   relationshipNote: string | null;
   branch: BranchBasicInfo;
   importedSummaryId: string | null;
+  shortSummary: string | null;
+  createdAt: string;
 };
 
 export type BranchSummaryView = Pick<
@@ -88,11 +90,13 @@ export type BranchPageData = {
   sources: Tables<"sources">[];
   files: BranchFileView[];
   comments: Tables<"comments">[];
+  authors: PublicProfile[];
   collaborators: BranchCollaboratorView[];
   aiAttribution: Tables<"ai_contributions">[];
   activity: Tables<"activity_events">[];
   privacyAndStatus: BranchPrivacyAndStatus;
   capabilities: BranchCapabilities;
+  isFeatured: boolean;
 };
 
 export type BranchWorkspaceNavigationData = {

@@ -40,14 +40,6 @@ export type DashboardActivity = {
   createdAt: string;
 };
 
-export type DashboardOverview = {
-  mainBranches: number;
-  totalBranches: number;
-  collaborators: number;
-  linkedBranches: number;
-  unfinishedDrafts: number;
-};
-
 export type ArchiveFilters = {
   query?: string;
   status?: string;
@@ -58,11 +50,23 @@ export type ArchiveFilters = {
 };
 
 export type DashboardData = {
-  profileName: string;
-  overview: DashboardOverview;
-  featured: DashboardBranch | null;
-  recent: DashboardBranch[];
+  profile: {
+    displayName: string;
+    username: string;
+    avatarUrl: string | null;
+    headline: string | null;
+    bio: string | null;
+    focusTags: string[];
+    canEdit: boolean;
+    counts: {
+      accessibleBranches: number;
+      collaborators: number;
+      linkedBranches: number;
+    };
+  };
   drafts: DashboardDraft[];
+  recentBranches: Pick<DashboardBranch, "id" | "title" | "parentTitle">[];
+  featuredBranches: DashboardBranch[];
   archive: DashboardBranch[];
   activity: DashboardActivity[];
 };

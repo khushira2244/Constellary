@@ -49,12 +49,14 @@ export function EditingWorkspace({
   data,
   rootBranchId,
   aiConfigured,
+  initialItem = "summary",
 }: {
   data: BranchPageData;
   rootBranchId: string;
   aiConfigured: boolean;
+  initialItem?: "summary" | "ai";
 }) {
-  const [active, setActive] = useState<Item>("summary");
+  const [active, setActive] = useState<Item>(initialItem);
   const [saveState, setSaveState] = useState<SaveState>("saved");
   const [context, setContext] = useState<Item[]>([]);
   const [assistantOpen, setAssistantOpen] = useState(true);

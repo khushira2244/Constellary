@@ -3,6 +3,7 @@ import { describe, expect, test } from "vitest";
 import {
   branchClassification,
   branchClassificationLabel,
+  connectorThickness,
   firstSummaryParagraph,
   flattenBranchTree,
 } from "@/features/branch-view/model";
@@ -41,5 +42,9 @@ describe("confirmed Branch View model", () => {
       ["child", 1],
       ["leaf", 2],
     ]);
+  });
+
+  test("bounds linked-branch connector emphasis without changing ancestry", () => {
+    expect([0, 1, 2, 3, 5, 6, 20].map(connectorThickness)).toEqual([1, 2, 2, 3, 3, 4, 4]);
   });
 });

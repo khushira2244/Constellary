@@ -1,5 +1,6 @@
 import { getCurrentProfile } from "@/features/profiles/services";
 import { requireCurrentUser } from "@/lib/auth/current-user";
+import { canUserAccessBranch } from "@/lib/permissions/branches";
 import { databaseFailure, ok, type ServiceResult } from "@/lib/services/result";
 import type { AppSupabaseClient, Branch, Enums, Tables } from "@/types/database";
 import { activityLabel, currentDraftStep } from "./model";
@@ -11,7 +12,6 @@ import type {
   DashboardDraft,
 } from "./types";
 
-const FEATURED_BRANCH_ID = "d0000000-0000-4000-8000-000000000001";
 const ARCHIVE_LIMIT = 25;
 
 type RelatedRows = {
@@ -144,14 +144,19 @@ export async function getDashboardData(
   if (!related.ok) return databaseFailure(related.error.message);
 
   const composed = composeBranches(accessible, accessible, related.data, user.data.id);
-  const featured = composed.find((branch) => branch.id === FEATURED_BRANCH_ID) ??
-    composed.find((branch) => !branch.parentId) ?? null;
-  const recent = composed
-    .filter((branch) =>
-      branch.id !== featured?.id &&
-      (!branch.parentId || branch.parentId === featured?.id),
-    )
-    .slice(0, 4);
+  const { data: featuredRows, error: featuredError } = await client
+    .from("featured_branches")
+    .select("branch_id,position")
+    .eq("user_id", user.data.id)
+    .order("position", { ascending: true })
+    .order("created_at", { ascending: true })
+    .limit(3);
+  if (featuredError) return databaseFailure(featuredError.message);
+  const composedById = new Map(composed.map((branch) => [branch.id, branch]));
+  const featuredBranches = (featuredRows ?? []).flatMap((row) => {
+    const branch = composedById.get(row.branch_id);
+    return branch ? [branch] : [];
+  });
 
   const { data: draftRows, error: draftError } = await client
     .from("branch_drafts").select("*").eq("creator_id", user.data.id)
@@ -184,6 +189,11 @@ export async function getDashboardData(
     actor.id, actor.display_name ?? actor.username,
   ]));
   const branchTitles = new Map(accessible.map((branch) => [branch.id, branch.title]));
+  const visibleCollaborators = new Set(
+    related.data.collaborators
+      .filter((membership) => membership.user_id !== user.data.id)
+      .map((membership) => membership.user_id),
+  );
   const activity: DashboardActivity[] = (activityRows ?? []).flatMap((event) => {
     const branchTitle = branchTitles.get(event.branch_id);
     return branchTitle ? [{
@@ -196,22 +206,95 @@ export async function getDashboardData(
     }] : [];
   });
 
-  const collaboratorUsers = new Set(related.data.collaborators
-    .filter((row) => ids.includes(row.branch_id) && row.user_id !== user.data.id)
-    .map((row) => row.user_id));
   return ok({
-    profileName: profile.data?.display_name ?? profile.data?.username ?? "Researcher",
-    overview: {
-      mainBranches: accessible.filter((branch) => !branch.parent_branch_id).length,
-      totalBranches: accessible.length,
-      collaborators: collaboratorUsers.size,
-      linkedBranches: related.data.links.length,
-      unfinishedDrafts: drafts.length,
+    profile: {
+      displayName: profile.data?.display_name ?? profile.data?.username ?? "Researcher",
+      username: profile.data?.username ?? "researcher",
+      avatarUrl: profile.data?.avatar_url ?? null,
+      headline: profile.data?.headline ?? null,
+      bio: profile.data?.bio ?? null,
+      focusTags: profile.data?.discipline
+        ?.split(",")
+        .map((tag) => tag.trim())
+        .filter(Boolean)
+        .slice(0, 5) ?? [],
+      canEdit: profile.data?.id === user.data.id,
+      counts: {
+        accessibleBranches: accessible.length,
+        collaborators: visibleCollaborators.size,
+        linkedBranches: related.data.links.length,
+      },
     },
-    featured,
-    recent,
     drafts,
+    recentBranches: composed.slice(0, 5).map(({ id, title, parentTitle }) => ({
+      id, title, parentTitle,
+    })),
+    featuredBranches,
     archive,
     activity,
+  });
+}
+
+export async function getHeaderNavigationData(client: AppSupabaseClient) {
+  const user = await requireCurrentUser(client);
+  if (!user.ok) return user;
+  const [{ data: drafts, error: draftError }, { data: branches, error: branchError }, owned] =
+    await Promise.all([
+      client.from("branch_drafts").select("id,title").eq("creator_id", user.data.id)
+        .is("confirmed_branch_id", null).order("updated_at", { ascending: false }).limit(3),
+      client.from("branches").select("id,title,parent_branch_id")
+        .order("updated_at", { ascending: false }).limit(5),
+      client.from("branches").select("id,title,updated_at")
+        .eq("owner_id", user.data.id)
+        .order("updated_at", { ascending: false }).limit(1).maybeSingle(),
+    ]);
+  const error = draftError ?? branchError ?? owned.error;
+  if (error) return databaseFailure(error.message);
+
+  let workspaceCandidate = owned.data;
+  if (!workspaceCandidate) {
+    const { data: editorMemberships, error: membershipError } = await client
+      .from("branch_collaborators")
+      .select("branch_id")
+      .eq("user_id", user.data.id)
+      .eq("role", "editor");
+    if (membershipError) return databaseFailure(membershipError.message);
+    const editorBranchIds = [...new Set((editorMemberships ?? []).map((row) => row.branch_id))];
+    if (editorBranchIds.length) {
+      const { data: editorBranch, error: editorBranchError } = await client
+        .from("branches")
+        .select("id,title,updated_at")
+        .in("id", editorBranchIds)
+        .order("updated_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (editorBranchError) return databaseFailure(editorBranchError.message);
+      workspaceCandidate = editorBranch;
+    }
+  }
+  const workspacePermission = workspaceCandidate
+    ? await canUserAccessBranch(workspaceCandidate.id, "edit", client)
+    : ok(false);
+  if (!workspacePermission.ok) return workspacePermission;
+  const parentIds = [...new Set((branches ?? []).flatMap((branch) =>
+    branch.parent_branch_id ? [branch.parent_branch_id] : []))];
+  const { data: parents, error: parentError } = parentIds.length
+    ? await client.from("branches").select("id,title").in("id", parentIds)
+    : { data: [], error: null };
+  if (parentError) return databaseFailure(parentError.message);
+  const titles = new Map((parents ?? []).map((parent) => [parent.id, parent.title]));
+  return ok({
+    drafts: (drafts ?? []).map((draft) => ({
+      id: draft.id,
+      title: draft.title?.trim() || "Untitled Branch",
+    })),
+    recentBranches: (branches ?? []).map((branch) => ({
+      id: branch.id,
+      title: branch.title,
+      parentTitle: branch.parent_branch_id ? titles.get(branch.parent_branch_id) ?? null : null,
+    })),
+    workspaceTarget: workspaceCandidate && workspacePermission.data
+      ? { id: workspaceCandidate.id, title: workspaceCandidate.title }
+      : null,
   });
 }

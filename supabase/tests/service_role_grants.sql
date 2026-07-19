@@ -3,7 +3,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select extensions.plan(16);
+select extensions.plan(17);
 
 select extensions.ok(
   has_schema_privilege('service_role', 'public', 'USAGE'),
@@ -24,6 +24,7 @@ select extensions.ok(has_table_privilege('service_role', 'public.ai_contribution
 select extensions.ok(has_table_privilege('service_role', 'public.files', 'SELECT,INSERT,UPDATE,DELETE'), 'service_role can seed file metadata');
 select extensions.ok(has_table_privilege('service_role', 'public.activity_events', 'SELECT,INSERT,UPDATE,DELETE'), 'service_role can seed activity');
 select extensions.ok(has_table_privilege('service_role', 'public.access_grants', 'SELECT,INSERT,UPDATE,DELETE'), 'service_role can seed access grants');
+select extensions.ok(has_table_privilege('service_role', 'public.featured_branches', 'SELECT,INSERT,UPDATE,DELETE'), 'service_role can seed personal featured branches');
 
 select extensions.ok(
   has_function_privilege(

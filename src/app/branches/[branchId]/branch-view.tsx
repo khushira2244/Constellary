@@ -18,12 +18,19 @@ import {
   branchClassification,
   branchClassificationLabel,
   branchStatusLabel,
+  connectorThickness,
   firstSummaryParagraph,
   flattenBranchTree,
 } from "@/features/branch-view/model";
+import { FeatureBranchButton } from "@/components/branches/feature-branch-button";
+import { ShareBranchControl } from "@/components/branches/share-branch-control";
 import {
   addLinkedBranchAction,
+  deleteBranchNoteAction,
   deleteBranchAction,
+  removeLinkedBranchAction,
+  saveBranchNoteAction,
+  saveBranchSummaryAction,
   searchBranchesAction,
   updateBranchPrivacyAction,
 } from "./actions";
@@ -169,7 +176,10 @@ function BranchTreeItem({
   onDelete: () => void;
 }) {
   const kind = branchClassification(data);
-  const style = { "--branch-depth": depth } as CSSProperties;
+  const style = {
+    "--branch-depth": depth,
+    "--link-emphasis": `${connectorThickness(data.linkedBranches.length)}px`,
+  } as CSSProperties;
   const clearFocus = (event: FocusEvent<HTMLElement>) => {
     if (!event.currentTarget.contains(event.relatedTarget)) onPreview(null);
   };
@@ -188,6 +198,9 @@ function BranchTreeItem({
         <div className="branch-card__heading">
           <span className="classification-marker" />
           <h2>{data.branch.title}</h2>
+          {data.capabilities.authenticated ? (
+            <FeatureBranchButton branchId={data.branch.id} initialFeatured={data.isFeatured} />
+          ) : null}
           <span className="branch-status">● {branchStatusLabel(data.branch.status)}</span>
           {data.capabilities.role === "owner" ? (
             <button className="icon-button" onClick={onDelete} aria-label={`Delete ${data.branch.title}`} type="button">♲</button>
@@ -198,15 +211,17 @@ function BranchTreeItem({
 
       {open ? <BranchSectionPanel data={data} section={open} onClose={() => onOpen(open)} /> : null}
 
-      <div className="add-subbranch-wrap">
-        <Link
-          className="add-subbranch-node"
-          href={`/branches/${data.branch.id}/new`}
-          aria-label={`Create a subbranch from ${data.branch.title}`}
-        >
-          ＋
-        </Link>
-      </div>
+      {data.capabilities.canEdit ? (
+        <div className="add-subbranch-wrap">
+          <Link
+            className="add-subbranch-node"
+            href={`/branches/${data.branch.id}/new`}
+            aria-label={`Create a subbranch from ${data.branch.title}`}
+          >
+            ＋
+          </Link>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -236,17 +251,16 @@ function BranchActionRow({
           </button>
         ))}
         <div className="branch-utility-row" aria-label="Branch utilities">
-          <PrivacyControl data={data} />
-          {data.capabilities.canEdit ? (
-            <Link
-              href={`/branches/${data.branch.id}/workspace`}
-              aria-label="Edit branch"
-              title="Open Editing Workspace"
-            >
-              ✎
-            </Link>
+          {data.capabilities.canManage ? <PrivacyControl data={data} /> : null}
+          <ShareBranchControl
+            branchId={data.branch.id}
+            title={data.branch.title}
+            privacy={data.branch.privacy}
+            canManage={data.capabilities.canManage}
+          />
+          {data.capabilities.authenticated ? (
+            <button type="button" aria-label="More branch actions" title="More branch actions">•••</button>
           ) : null}
-          <button type="button" aria-label="More branch actions" title="More branch actions">•••</button>
         </div>
       </div>
     </div>
@@ -307,11 +321,21 @@ function BranchSectionPanel({
   section: SectionName;
   onClose: () => void;
 }) {
+  const fullView = section === "links"
+    ? { href: `/branches/${data.branch.id}/links`, label: "Open full linked branches view" }
+    : section === "summary"
+      ? { href: `/branches/${data.branch.id}/summary`, label: "Open full summary" }
+      : section === "comments" || section === "collaborators"
+        ? { href: `/branches/${data.branch.id}/community`, label: "Open collaborators and comments" }
+        : null;
   return (
     <section className="branch-section-panel">
       <div className="branch-section-panel__heading">
         <strong>{section[0].toUpperCase() + section.slice(1)}</strong>
-        <button onClick={onClose} type="button" aria-label={`Close ${section}`}>×</button>
+        <div>
+          {fullView ? <Link href={fullView.href} aria-label={fullView.label} title={fullView.label}>⛶</Link> : null}
+          <button onClick={onClose} type="button" aria-label={`Close ${section}`}>×</button>
+        </div>
       </div>
       {section === "summary" ? <SummarySection data={data} /> : null}
       {section === "notes" ? <NotesSection data={data} /> : null}
@@ -324,27 +348,96 @@ function BranchSectionPanel({
 }
 
 function SummarySection({ data }: { data: BranchPageData }) {
-  const summary = data.fullSummary ?? data.shortSummary;
+  const summary = data.fullSummary;
+  const readable = summary ?? data.shortSummary;
+  const [editing, setEditing] = useState(false);
+  const [content, setContent] = useState(summary?.content ?? "");
+  const [state, setState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [message, setMessage] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+  const author = data.authors.find((profile) => profile.id === summary?.created_by);
+  const aiAttributed = data.aiAttribution.some((item) =>
+    item.target_id === summary?.id || item.contribution_type === "summary_draft");
   return (
     <div className="section-content">
-      <p>{summary?.content ?? "No summary has been added yet."}</p>
-      {data.capabilities.canEdit ? (
-        <span className="section-edit-link" title="Editing Workspace is outside this build scope">
-          Editable in Workspace
-        </span>
+      {editing ? (
+        <div className="inline-summary-editor">
+          <textarea aria-label="Full Summary" value={content} onChange={(event) => setContent(event.target.value)} />
+          <div>
+            <span className={`save-indicator save-indicator--${state === "idle" ? "saved" : state}`}>{state === "saving" ? "Saving…" : state === "error" ? "Error" : state === "saved" ? "Saved" : ""}</span>
+            <button disabled={pending} onClick={() => { setContent(summary?.content ?? ""); setEditing(false); setMessage(null); }} type="button">Cancel</button>
+            <button disabled={pending || !content.trim()} onClick={() => {
+              setState("saving");
+              setMessage(null);
+              startTransition(async () => {
+                const result = await saveBranchSummaryAction(data.branch.id, summary?.id ?? null, content);
+                if (!result.ok) {
+                  setState("error");
+                  setMessage(result.message);
+                  return;
+                }
+                setState("saved");
+                setEditing(false);
+              });
+            }} type="button">Save Summary</button>
+          </div>
+          {message ? <p className="section-message" role="alert">{message}</p> : null}
+        </div>
+      ) : <p>{readable?.content ?? "No summary has been added yet."}</p>}
+      {readable ? (
+        <small className="reading-meta">
+          {author?.display_name ?? author?.username ?? "Research contributor"}
+          {" · "}{new Date(readable.updated_at).toLocaleDateString()}
+          {" · "}{branchStatusLabel(readable.status)}
+          {aiAttributed ? " · AI-attributed" : ""}
+        </small>
+      ) : null}
+      {data.capabilities.canEdit && !editing ? (
+        <div className="panel-management-actions">
+          <button onClick={() => setEditing(true)} type="button">Edit Summary</button>
+          <Link href={`/branches/${data.branch.id}/workspace?item=full-summary`}>Open in Workspace</Link>
+        </div>
       ) : null}
     </div>
   );
 }
 
 function NotesSection({ data }: { data: BranchPageData }) {
-  if (!data.notes.length) return <p className="section-empty">No notes yet.</p>;
+  const [draft, setDraft] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
   return (
-    <ul className="section-list">
-      {data.notes.map((note) => (
-        <li key={note.id}><strong>{note.title ?? "Note"}</strong><span>{noteContent(note.content)}</span></li>
-      ))}
-    </ul>
+    <div className="section-content">
+      {data.notes.length ? <ul className="section-list">
+        {data.notes.map((note) => (
+          <li key={note.id}>
+            <strong>{note.title ?? "Note"}</strong><span>{noteContent(note.content)}</span>
+            {data.capabilities.canEdit ? <div className="compact-row-actions">
+              <button onClick={() => { setEditingId(note.id); setDraft(noteContent(note.content)); }} type="button">Edit</button>
+              <button onClick={() => {
+                if (!window.confirm("Delete this note?")) return;
+                startTransition(async () => {
+                  const result = await deleteBranchNoteAction(data.branch.id, note.id);
+                  setMessage(result.ok ? "Note deleted. Refreshing…" : result.message);
+                  if (result.ok) window.location.reload();
+                });
+              }} type="button">Delete</button>
+            </div> : null}
+          </li>
+        ))}
+      </ul> : <p className="section-empty">No notes yet.</p>}
+      {data.capabilities.canEdit ? <div className="inline-note-editor">
+        <textarea aria-label={editingId ? "Edit note" : "New note"} value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="Write a research note…" />
+        <button disabled={pending || !draft.trim()} onClick={() => startTransition(async () => {
+          const result = await saveBranchNoteAction(data.branch.id, editingId, draft);
+          setMessage(result.ok ? "Note saved. Refreshing…" : result.message);
+          if (result.ok) window.location.reload();
+        })} type="button">{editingId ? "Save Note" : "Add Note"}</button>
+        {editingId ? <button onClick={() => { setEditingId(null); setDraft(""); }} type="button">Cancel</button> : null}
+        {message ? <p className="section-message" role="alert">{message}</p> : null}
+      </div> : null}
+    </div>
   );
 }
 
@@ -358,42 +451,56 @@ function noteContent(value: unknown) {
 }
 
 function CommentsSection({ data }: { data: BranchPageData }) {
-  if (!data.comments.length) return <p className="section-empty">No comments yet.</p>;
   return (
-    <ul className="section-list">
-      {data.comments.map((comment) => <li key={comment.id}>{comment.content}</li>)}
-    </ul>
+    <div className="section-content">
+      {data.comments.length ? <ul className="section-list">{data.comments.slice(-3).reverse().map((comment) => {
+        const author = data.authors.find((profile) => profile.id === comment.author_id);
+        return (
+          <li key={comment.id}>
+            <strong>{author?.display_name ?? author?.username ?? "Research contributor"}</strong>
+            <span>{comment.content}</span>
+            <small>{new Date(comment.created_at).toLocaleDateString()}</small>
+          </li>
+        );
+      })}</ul> : <p className="section-empty">No comments yet.</p>}
+      {data.capabilities.canComment ? (
+        <Link className="section-edit-link" href={`/branches/${data.branch.id}/community`}>Open discussion</Link>
+      ) : null}
+    </div>
   );
 }
 
 function CollaboratorsSection({ data }: { data: BranchPageData }) {
+  const collaborators = data.collaborators
+    .filter((item) => item.userId !== data.branch.owner_id)
+    .slice(0, 4);
   return (
     <div className="section-content">
-      {data.collaborators.length ? (
+      <p className="collaborator-count">{data.collaborators.length} active collaborators</p>
+      <ul className="section-list">
+        <li>
+          <strong>{data.owner?.display_name ?? data.owner?.username ?? "Branch owner"}</strong>
+          <span>Owner · Active</span>
+        </li>
+      </ul>
+      {collaborators.length ? (
         <ul className="section-list">
-          {data.collaborators.map((collaborator) => (
+          {collaborators.map((collaborator) => (
             <li key={collaborator.id}>
               <strong>
                 {collaborator.profile?.display_name
                   ?? collaborator.profile?.username
                   ?? "Collaborator"}
               </strong>
-              <span>{branchStatusLabel(collaborator.role)}</span>
+              <span>{branchStatusLabel(collaborator.role)} · Active</span>
             </li>
           ))}
         </ul>
       ) : (
         <p className="section-empty">No collaborators have been added yet.</p>
       )}
-      {data.capabilities.canManage ? (
-        <button
-          className="section-edit-link"
-          disabled
-          title="Invitation management will open in Workspace"
-          type="button"
-        >
-          ＋ Add collaborator
-        </button>
+      {data.capabilities.role === "owner" ? (
+        <Link className="section-edit-link" href={`/branches/${data.branch.id}/community`}>Manage collaborators</Link>
       ) : null}
     </div>
   );
@@ -410,6 +517,9 @@ function AIRoleSection({ data }: { data: BranchPageData }) {
           : "No attributed AI contribution has been recorded for this branch."}
       </p>
       <small>AI assists only through recorded, attributable contributions that remain subject to human approval.</small>
+      {data.capabilities.canEdit ? (
+        <Link className="section-edit-link" href={`/branches/${data.branch.id}/workspace?item=ai`}>Open AI Workspace</Link>
+      ) : null}
     </div>
   );
 }
@@ -442,14 +552,31 @@ function LinksSection({ data }: { data: BranchPageData }) {
     });
   }
 
+  function remove(linkId: string) {
+    if (!window.confirm("Remove this linked-branch relationship?")) return;
+    setMessage(null);
+    startTransition(async () => {
+      const result = await removeLinkedBranchAction(data.branch.id, linkId);
+      setMessage(result.ok ? "Linked branch removed. Refreshing…" : result.message);
+      if (result.ok) window.location.reload();
+    });
+  }
+
   return (
     <div className="section-content">
       {data.linkedBranches.length ? (
         <ul className="section-list">
           {data.linkedBranches.map((link) => (
-            <li key={link.linkId}>
-              <Link href={`/branches/${link.branch.id}`}>{link.branch.title}</Link>
-              <span>{link.relationshipType.replaceAll("_", " ")}</span>
+            <li className="linked-preview-row" key={link.linkId}>
+              <div>
+                <Link href={`/branches/${link.branch.id}`}>{link.branch.title}</Link>
+                <small>{link.direction === "outgoing" ? "Outgoing" : "Incoming"} · {link.relationshipType.replaceAll("_", " ")}</small>
+                <p>{link.shortSummary ?? "No readable short summary."}</p>
+              </div>
+              <span>{branchStatusLabel(link.branch.status)} · {branchStatusLabel(link.branch.privacy)}</span>
+              {data.capabilities.canEdit && link.direction === "outgoing"
+                ? <button disabled={pending} onClick={() => remove(link.linkId)} type="button">Remove</button>
+                : null}
             </li>
           ))}
         </ul>

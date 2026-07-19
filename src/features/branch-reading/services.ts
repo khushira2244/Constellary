@@ -248,7 +248,7 @@ async function compose(
   const user = await optionalUser(client);
   const [
     owner, path, parent, children, links, shortSummary, fullSummary,
-    notes, sources, files, comments, collaborators, ai, activity, access,
+    notes, sources, files, comments, collaborators, ai, activity, access, featured,
   ] = await Promise.all([
     readOwner(branch.owner_id, client),
     readPath(branch, client),
@@ -267,14 +267,30 @@ async function compose(
     user ? readAI(branch.id, client) : Promise.resolve({ data: [], error: null }),
     readActivity(branch.id, client),
     capabilities(branch, client),
+    user
+      ? client.from("featured_branches").select("branch_id")
+          .eq("user_id", user.id).eq("branch_id", branch.id).maybeSingle()
+      : Promise.resolve({ data: null, error: null }),
   ]);
   const errors = [
     owner.error, path.error, parent.error, children.error, links.error,
     shortSummary.error, fullSummary.error, notes.error, sources.error, files.error,
-    comments.error, collaborators.error, ai.error, activity.error,
+    comments.error, collaborators.error, ai.error, activity.error, featured.error,
   ].filter(Boolean);
   if (errors[0]) return databaseFailure(errors[0].message);
   if (!access.ok) return access;
+  const authorIds = [...new Set([
+    ...(comments.data ?? []).map((comment) => comment.author_id),
+    ...(shortSummary.data ? [shortSummary.data.created_by] : []),
+    ...(fullSummary.data ? [fullSummary.data.created_by] : []),
+  ])];
+  const { data: authors, error: authorError } = authorIds.length
+    ? await client
+        .from("profiles")
+        .select("id,display_name,username,avatar_url,headline,is_verified")
+        .in("id", authorIds)
+    : { data: [], error: null };
+  if (authorError) return databaseFailure(authorError.message);
   return ok({
     branch,
     owner: owner.data,
@@ -288,6 +304,7 @@ async function compose(
     sources: sources.data ?? [],
     files: files.data ?? [],
     comments: comments.data ?? [],
+    authors: authors ?? [],
     collaborators: collaborators.data ?? [],
     aiAttribution: ai.data ?? [],
     activity: activity.data ?? [],
@@ -298,6 +315,7 @@ async function compose(
       updated_at: branch.updated_at,
     },
     capabilities: access.data,
+    isFeatured: Boolean(featured.data),
   });
 }
 

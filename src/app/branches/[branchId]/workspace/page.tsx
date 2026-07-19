@@ -7,10 +7,17 @@ import { EditingWorkspace } from "./editing-workspace";
 
 export default async function ConfirmedBranchWorkspacePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ branchId: string }>;
+  searchParams: Promise<{ item?: string }>;
 }) {
-  const { branchId } = await params;
+  const [{ branchId }, query] = await Promise.all([params, searchParams]);
+  const initialItem = query.item === "full-summary"
+    ? "summary"
+    : query.item === "ai"
+      ? "ai"
+      : "summary";
   const client = await createServerSupabaseClient();
   const [branch, root] = await Promise.all([
     getEditableBranchView(branchId, client),
@@ -37,6 +44,7 @@ export default async function ConfirmedBranchWorkspacePage({
       data={branch.data}
       rootBranchId={root.data}
       aiConfigured={Boolean(process.env.OPENAI_API_KEY)}
+      initialItem={initialItem}
     />
   );
 }
