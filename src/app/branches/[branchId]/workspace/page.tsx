@@ -15,7 +15,7 @@ export default async function ConfirmedBranchWorkspacePage({
   const [{ branchId }, query] = await Promise.all([params, searchParams]);
   const initialItem = query.item === "full-summary"
     ? "summary"
-    : query.item === "ai"
+    : query.item === "ai-assistant"
       ? "ai"
       : "summary";
   const client = await createServerSupabaseClient();

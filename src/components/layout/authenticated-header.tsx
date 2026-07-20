@@ -62,6 +62,7 @@ export async function AuthenticatedHeader() {
           <div className="profile-menu">
             <strong>{name}</strong>
             <Link href="/#profile">View profile</Link>
+            <Link href="/invitations">Invitations</Link>
             <SignOutButton />
           </div>
         </details>

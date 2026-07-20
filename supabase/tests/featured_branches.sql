@@ -24,7 +24,7 @@ insert into public.branches (
 ) values
   ('f1000000-0000-4000-8000-000000000010', 'f1000000-0000-4000-8000-000000000001',
    'Accessible private branch', 'Private idea', 'own_idea', 'active', 'private', now()),
-  ('f1000000-0000-4000-8000-000000000011', 'f1000000-0000-4000-8000-000000000002',
+  ('f1000000-0000-4000-8000-000000000011', 'f1000000-0000-4000-8000-000000000003',
    'Inaccessible private branch', 'Other private idea', 'own_idea', 'active', 'private', now());
 
 insert into public.branch_collaborators (branch_id, user_id, role, added_by)

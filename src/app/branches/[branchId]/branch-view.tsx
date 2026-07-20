@@ -325,8 +325,8 @@ function BranchSectionPanel({
     ? { href: `/branches/${data.branch.id}/links`, label: "Open full linked branches view" }
     : section === "summary"
       ? { href: `/branches/${data.branch.id}/summary`, label: "Open full summary" }
-      : section === "comments" || section === "collaborators"
-        ? { href: `/branches/${data.branch.id}/community`, label: "Open collaborators and comments" }
+       : section === "comments" || section === "collaborators"
+         ? { href: `/branches/${data.branch.id}/community#${section}`, label: "Open collaborators and comments" }
         : null;
   return (
     <section className="branch-section-panel">
@@ -453,19 +453,20 @@ function noteContent(value: unknown) {
 function CommentsSection({ data }: { data: BranchPageData }) {
   return (
     <div className="section-content">
+      <p className="collaborator-count">{data.comments.length} comments</p>
       {data.comments.length ? <ul className="section-list">{data.comments.slice(-3).reverse().map((comment) => {
         const author = data.authors.find((profile) => profile.id === comment.author_id);
         return (
           <li key={comment.id}>
-            <strong>{author?.display_name ?? author?.username ?? "Research contributor"}</strong>
+            <strong><ProfileDot name={author?.display_name ?? author?.username ?? "Research contributor"} avatarUrl={author?.avatar_url} />{author?.display_name ?? author?.username ?? "Research contributor"}</strong>
             <span>{comment.content}</span>
             <small>{new Date(comment.created_at).toLocaleDateString()}</small>
           </li>
         );
       })}</ul> : <p className="section-empty">No comments yet.</p>}
       {data.capabilities.canComment ? (
-        <Link className="section-edit-link" href={`/branches/${data.branch.id}/community`}>Open discussion</Link>
-      ) : null}
+        <Link className="section-edit-link" href={`/branches/${data.branch.id}/community#comments`}>Open collaborators &amp; comments</Link>
+      ) : <Link className="section-edit-link" href={`/branches/${data.branch.id}/community#comments`}>Open collaborators &amp; comments</Link>}
     </div>
   );
 }
@@ -473,14 +474,14 @@ function CommentsSection({ data }: { data: BranchPageData }) {
 function CollaboratorsSection({ data }: { data: BranchPageData }) {
   const collaborators = data.collaborators
     .filter((item) => item.userId !== data.branch.owner_id)
-    .slice(0, 4);
+    .slice(0, 3);
+  const total = data.collaborators.filter((item) => item.userId !== data.branch.owner_id).length;
   return (
     <div className="section-content">
-      <p className="collaborator-count">{data.collaborators.length} active collaborators</p>
+      <p className="collaborator-count">{total} collaborators</p>
       <ul className="section-list">
         <li>
-          <strong>{data.owner?.display_name ?? data.owner?.username ?? "Branch owner"}</strong>
-          <span>Owner · Active</span>
+          <strong><ProfileDot name={data.owner?.display_name ?? data.owner?.username ?? "Branch owner"} avatarUrl={data.owner?.avatar_url} />{data.owner?.display_name ?? data.owner?.username ?? "Branch owner"}</strong>
         </li>
       </ul>
       {collaborators.length ? (
@@ -488,22 +489,25 @@ function CollaboratorsSection({ data }: { data: BranchPageData }) {
           {collaborators.map((collaborator) => (
             <li key={collaborator.id}>
               <strong>
+                <ProfileDot name={collaborator.profile?.display_name ?? collaborator.profile?.username ?? "Collaborator"} avatarUrl={collaborator.profile?.avatar_url} />
                 {collaborator.profile?.display_name
                   ?? collaborator.profile?.username
                   ?? "Collaborator"}
               </strong>
-              <span>{branchStatusLabel(collaborator.role)} · Active</span>
             </li>
           ))}
         </ul>
       ) : (
         <p className="section-empty">No collaborators have been added yet.</p>
       )}
-      {data.capabilities.role === "owner" ? (
-        <Link className="section-edit-link" href={`/branches/${data.branch.id}/community`}>Manage collaborators</Link>
-      ) : null}
+      {total > collaborators.length ? <p className="collaborator-count">+ {total - collaborators.length} more</p> : null}
+      <Link className="section-edit-link" href={`/branches/${data.branch.id}/community#collaborators`}>Open collaborators &amp; comments</Link>
     </div>
   );
+}
+
+function ProfileDot({ name, avatarUrl }: { name: string; avatarUrl?: string | null }) {
+  return <i className="profile-dot" style={avatarUrl ? { backgroundImage: `url("${avatarUrl}")` } : undefined}>{avatarUrl ? "" : name[0]?.toUpperCase()}</i>;
 }
 
 function AIRoleSection({ data }: { data: BranchPageData }) {
@@ -518,7 +522,7 @@ function AIRoleSection({ data }: { data: BranchPageData }) {
       </p>
       <small>AI assists only through recorded, attributable contributions that remain subject to human approval.</small>
       {data.capabilities.canEdit ? (
-        <Link className="section-edit-link" href={`/branches/${data.branch.id}/workspace?item=ai`}>Open AI Workspace</Link>
+        <Link className="section-edit-link" href={`/branches/${data.branch.id}/workspace?item=ai-assistant`}>Open AI Workspace</Link>
       ) : null}
     </div>
   );

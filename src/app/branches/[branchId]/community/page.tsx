@@ -5,6 +5,7 @@ import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { BranchReadingPage, ReadingIdentity } from "../reading-page";
 import { addBranchCommentAction } from "./actions";
 import { CommentEntry } from "./comment-entry";
+import { InviteCollaboratorForm } from "./invite-form";
 
 const roleLabel = (value: string) => value.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 
@@ -20,7 +21,7 @@ export default async function CommunityPage({ params }: { params: Promise<{ bran
   const { data: pendingInvitations } = data.capabilities.canManage
     ? await client
         .from("collaboration_invites")
-        .select("id,role,status")
+        .select("id,invitee_email,status")
         .eq("branch_id", branchId)
         .eq("status", "pending")
         .order("created_at")
@@ -30,30 +31,35 @@ export default async function CommunityPage({ params }: { params: Promise<{ bran
     <div className="branch-atmosphere">
       <AuthenticatedHeader />
       <BranchReadingPage data={data} eyebrow="Research community" title="Collaborators and Comments">
-        <section className="reading-section">
+        <section className="reading-section" id="collaborators" tabIndex={-1}>
           <h2>Collaborators</h2>
+          <h3>Owner</h3>
           <div className="community-list">
             <article>
               <ReadingIdentity name={data.owner?.display_name ?? data.owner?.username ?? "Branch owner"} avatarUrl={data.owner?.avatar_url} />
-              <span className="role-badge">Owner</span><small>Active</small>
             </article>
+          </div>
+          <h3>Collaborators</h3>
+          <div className="community-list">
             {data.collaborators.filter((item) => item.userId !== data.branch.owner_id).map((item) => (
               <article key={item.id}>
                 <ReadingIdentity name={item.profile?.display_name ?? item.profile?.username ?? "Collaborator"} avatarUrl={item.profile?.avatar_url} />
-                <span className="role-badge">{roleLabel(item.role)}</span><small>Active</small>
-              </article>
-            ))}
-            {(pendingInvitations ?? []).map((invitation) => (
-              <article key={invitation.id}>
-                <ReadingIdentity name="Invited collaborator" />
-                <span className="role-badge">{roleLabel(invitation.role)}</span><small>Pending</small>
               </article>
             ))}
           </div>
-          {!data.collaborators.length ? <p className="reading-empty">No additional collaborators.</p> : null}
-          {data.capabilities.canManage ? <p className="reading-note">Invitation, role, and removal controls are deferred to Task 2.</p> : null}
+          {data.capabilities.role === "owner" && (pendingInvitations ?? []).length ? <>
+            <h3>Pending invitations</h3>
+            <div className="community-list">{(pendingInvitations ?? []).map((invitation) => (
+              <article key={invitation.id}>
+                <ReadingIdentity name={invitation.invitee_email} />
+                <small>Pending</small>
+              </article>
+            ))}</div>
+          </> : null}
+          {!data.collaborators.filter((item) => item.userId !== data.branch.owner_id).length ? <p className="reading-empty">No collaborators yet.</p> : null}
+          {data.capabilities.role === "owner" ? <InviteCollaboratorForm branchId={branchId} /> : null}
         </section>
-        <section className="reading-section">
+        <section className="reading-section" id="comments" tabIndex={-1}>
           <h2>Comments</h2>
           {data.comments.length ? <div className="comment-reading-list">{data.comments.map((comment) => {
             const author = data.authors.find((profile) => profile.id === comment.author_id);
@@ -63,7 +69,7 @@ export default async function CommunityPage({ params }: { params: Promise<{ bran
                 branchId={branchId}
                 commentId={comment.id}
                 content={comment.content}
-                canChange={comment.author_id === user?.id || data.capabilities.canEdit}
+                canChange={comment.author_id === user?.id}
                 key={comment.id}
               >
                 <ReadingIdentity name={name} avatarUrl={author?.avatar_url} />

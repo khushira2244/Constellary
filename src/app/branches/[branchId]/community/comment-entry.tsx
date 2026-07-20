@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 
-import { deleteBranchCommentAction, updateBranchCommentAction } from "./actions";
+import { updateBranchCommentAction } from "./actions";
 
 export function CommentEntry({
   branchId,
@@ -34,14 +34,6 @@ export function CommentEntry({
           })} type="button">Save</button>
           <button onClick={() => { setDraft(content); setEditing(false); }} type="button">Cancel</button>
         </> : <button onClick={() => setEditing(true)} type="button">Edit</button>}
-        <button disabled={pending} onClick={() => {
-          if (!window.confirm("Delete this comment?")) return;
-          startTransition(async () => {
-            const result = await deleteBranchCommentAction(branchId, commentId);
-            setMessage(result.ok ? "Comment deleted." : result.message);
-            if (result.ok) window.location.reload();
-          });
-        }} type="button">Delete</button>
       </div> : null}
       {message ? <small role="status">{message}</small> : null}
     </article>

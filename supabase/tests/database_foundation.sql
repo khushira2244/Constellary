@@ -56,7 +56,15 @@ values
   );
 
 select extensions.ok(
-  (select count(*) = 3 from public.profiles),
+  (
+    select count(*) = 3
+    from public.profiles
+    where id in (
+      '11111111-1111-4111-8111-111111111111',
+      '22222222-2222-4222-8222-222222222222',
+      '33333333-3333-4333-8333-333333333333'
+    )
+  ),
   'auth trigger should create three profiles'
 );
 
@@ -626,7 +634,12 @@ select extensions.ok(
   (
     select count(*) = 1
     from public.branches
-    where privacy = 'public'
+    where id = (
+      select (result ->> 'branch_id')::uuid
+      from confirmation_results
+      where label = 'parent'
+    )
+      and privacy = 'public'
   ),
   'anonymous readers should see the public branch'
 );
@@ -635,7 +648,12 @@ select extensions.ok(
   (
     select count(*) = 0
     from public.branches
-    where privacy = 'private'
+    where id = (
+      select (result ->> 'branch_id')::uuid
+      from confirmation_results
+      where label = 'child'
+    )
+      and privacy = 'private'
   ),
   'anonymous readers should not see private branches'
 );

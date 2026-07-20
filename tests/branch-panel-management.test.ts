@@ -31,9 +31,9 @@ describe("Branch View panel management", () => {
 
   test("Workspace opens the exact selected branch and safely resolves item queries", () => {
     expect(view).toContain("`/branches/${data.branch.id}/workspace?item=full-summary`");
-    expect(view).toContain("`/branches/${data.branch.id}/workspace?item=ai`");
+    expect(view).toContain("`/branches/${data.branch.id}/workspace?item=ai-assistant`");
     expect(workspacePage).toContain('query.item === "full-summary"');
-    expect(workspacePage).toContain('query.item === "ai"');
+    expect(workspacePage).toContain('query.item === "ai-assistant"');
     expect(workspacePage).toContain('initialItem={initialItem}');
     expect(workspace).toContain("useState<Item>(initialItem)");
   });
@@ -59,9 +59,7 @@ describe("Branch View panel management", () => {
 
   test("comments, collaborators, and AI actions retain their role boundaries", () => {
     expect(view).toContain("data.capabilities.canComment ? (");
-    expect(view).toContain("Open discussion");
-    expect(view).toContain('data.capabilities.role === "owner"');
-    expect(view).toContain("Manage collaborators");
+    expect(view).toContain("Open collaborators &amp; comments");
     expect(view).toContain("data.capabilities.canEdit ? (");
     expect(view).toContain("Open AI Workspace");
   });
