@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 
 import { updateBranchCommentAction } from "./actions";
 
@@ -17,6 +18,7 @@ export function CommentEntry({
   canChange: boolean;
   children: React.ReactNode;
 }) {
+  const router = useRouter();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(content);
   const [message, setMessage] = useState<string | null>(null);
@@ -30,7 +32,10 @@ export function CommentEntry({
           <button disabled={pending || !draft.trim()} onClick={() => startTransition(async () => {
             const result = await updateBranchCommentAction(branchId, commentId, draft);
             setMessage(result.ok ? "Comment updated." : result.message);
-            if (result.ok) setEditing(false);
+            if (result.ok) {
+              setEditing(false);
+              router.refresh();
+            }
           })} type="button">Save</button>
           <button onClick={() => { setDraft(content); setEditing(false); }} type="button">Cancel</button>
         </> : <button onClick={() => setEditing(true)} type="button">Edit</button>}

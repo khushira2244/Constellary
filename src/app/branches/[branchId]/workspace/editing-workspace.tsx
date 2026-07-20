@@ -5,7 +5,6 @@ import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 
 import type { BranchPageData } from "@/features/branch-reading/types";
 import { branchClassificationLabel, branchClassification, branchStatusLabel } from "@/features/branch-view/model";
-import type { AIContributionKind } from "@/features/ai-contributions/types";
 import type { Enums, Json } from "@/types/database";
 import {
   applyAIContributionAction,
@@ -99,6 +98,7 @@ export function EditingWorkspace({
             branchId={data.branch.id}
             configured={aiConfigured}
             context={context}
+            history={data.aiAttribution}
             open={assistantOpen}
             onClear={() => setContext([])}
             onClose={() => setAssistantOpen(false)}
@@ -281,37 +281,48 @@ function SettingSelect({ value, options, onChange }: { value: string; options: s
 }
 
 function AIAssistantPanel({
-  branchId, configured, context, open, onClear, onClose, onOpen, onRemove,
+  branchId, configured, context, history, open, onClear, onClose, onOpen, onRemove,
 }: {
-  branchId: string; configured: boolean; context: Item[]; open: boolean; onClear: () => void; onClose: () => void; onOpen: () => void; onRemove: (item: Item) => void;
+  branchId: string; configured: boolean; context: Item[]; history: BranchPageData["aiAttribution"]; open: boolean; onClear: () => void; onClose: () => void; onOpen: () => void; onRemove: (item: Item) => void;
 }) {
   const labels = useMemo(() => new Map(items.map((item) => [item.id, item.label])), []);
   const [prompt, setPrompt] = useState("");
-  const [kind, setKind] = useState<AIContributionKind>("rough_note_clarification");
-  const [response, setResponse] = useState<{ id: string; text: string; status: "generated" | "approved" | "rejected" | "applied" } | null>(null);
+  const [response, setResponse] = useState<{
+    id: string;
+    text: string;
+    model: string;
+    contextLabels: string[];
+    generatedAt: string;
+    status: "generated" | "approved" | "rejected" | "applied";
+  } | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
-  const target = kind === "full_summary_draft"
-    ? "full_summary"
-    : kind === "visual_summary_structure"
-      ? "visual_summary"
-      : "note";
-
   function send() {
     if (pending || !prompt.trim()) return;
+    if (!context.length) {
+      setMessage("Add a Workspace item to AI context before asking GPT-5.6.");
+      return;
+    }
     setMessage(null);
     startTransition(async () => {
       const generated = await requestAIAssistanceAction({
         branchId,
         prompt,
         context,
-        contributionKind: kind,
+        contributionKind: "full_summary_draft",
       });
       if (!generated.ok) {
         setMessage(generated.message);
         return;
       }
-      setResponse({ id: generated.data.contributionId, text: generated.data.text, status: "generated" });
+      setResponse({
+        id: generated.data.contributionId,
+        text: generated.data.text,
+        model: generated.data.model,
+        contextLabels: generated.data.contextLabels,
+        generatedAt: generated.data.generatedAt,
+        status: "generated",
+      });
       setPrompt("");
     });
   }
@@ -324,7 +335,7 @@ function AIAssistantPanel({
         ? await approveAIContributionAction(response.id, response.text)
         : action === "reject"
           ? await rejectAIContributionAction(response.id)
-          : await applyAIContributionAction(branchId, response.id, target);
+          : await applyAIContributionAction(branchId, response.id, "full_summary");
       if (!reviewed.ok) {
         setMessage(reviewed.message);
         return;
@@ -342,7 +353,7 @@ function AIAssistantPanel({
       <header><strong>✦ AI Assistant</strong><button onClick={onClose} aria-label="Close AI Assistant" type="button">×</button></header>
       <div className="selected-context">
         <div><strong>Using selected context</strong><button onClick={onClear} type="button">Clear</button></div>
-        {context.length ? context.map((item) => <button key={item} onClick={() => onRemove(item)} type="button">{labels.get(item)} ×</button>) : <p>No context selected.</p>}
+        {context.length ? context.map((item) => <button aria-label={`Remove ${labels.get(item)} from AI context`} key={item} onClick={() => onRemove(item)} type="button">{labels.get(item)} ×</button>) : <p>Add a Workspace item to AI context before asking GPT-5.6.</p>}
         <small>{context.length} context item{context.length === 1 ? "" : "s"}</small>
       </div>
       <div className="ai-conversation">
@@ -350,7 +361,8 @@ function AIAssistantPanel({
           <p>{configured ? "Select context and ask about this branch." : "AI is not configured for this environment."}</p>
         ) : (
           <div className="ai-review">
-            <span>AI contribution · {response.status}</span>
+            <span>GPT-5.6 · {response.status}</span>
+            <small>{response.contextLabels.join(", ")} · {new Date(response.generatedAt).toLocaleString()}</small>
             <textarea
               aria-label="Review AI response"
               disabled={response.status !== "generated"}
@@ -365,25 +377,25 @@ function AIAssistantPanel({
             ) : null}
             {response.status === "approved" ? (
               <button disabled={pending} onClick={() => review("apply")} type="button">
-                Apply approved contribution
+                Apply to Full Summary
               </button>
             ) : null}
           </div>
         )}
       </div>
-      <select
-        className="ai-request-kind"
-        disabled={pending}
-        onChange={(event) => setKind(event.target.value as AIContributionKind)}
-        value={kind}
-      >
-        <option value="rough_note_clarification">Rewrite selected material</option>
-        <option value="full_summary_draft">Draft full summary</option>
-        <option value="next_direction_suggestion">Suggest next direction</option>
-        <option value="reference_suggestion">Propose references</option>
-        <option value="linked_branch_context_summary">Summarize linked context</option>
-        <option value="visual_summary_structure">Draft visual structure</option>
-      </select>
+      {history.length ? (
+        <details className="ai-history">
+          <summary>AI history ({history.length})</summary>
+          <ul>
+            {history.slice(0, 5).map((entry) => (
+              <li key={entry.id}>
+                <span>{entry.model_name}</span>
+                <small>{entry.approval_status} · {new Date(entry.created_at).toLocaleString()}</small>
+              </li>
+            ))}
+          </ul>
+        </details>
+      ) : null}
       <div className="ai-prompt">
         <input
           disabled={pending || !configured}
@@ -395,11 +407,11 @@ function AIAssistantPanel({
               send();
             }
           }}
-          placeholder="Ask about selected context…"
+          placeholder="Ask GPT-5.6 about the selected research context..."
           value={prompt}
         />
-        <button disabled={pending || !configured || !prompt.trim()} onClick={send} type="button">
-          {pending ? "…" : "➤"}
+        <button disabled={pending || !configured || !prompt.trim() || !context.length} onClick={send} type="button">
+          {pending ? "Generating…" : "Ask"}
         </button>
       </div>
       {message ? <p className="ai-error" role="alert">{message}</p> : null}

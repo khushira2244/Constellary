@@ -30,4 +30,5 @@ export type AIAssistantResponse = {
   text: string;
   model: string;
   contextLabels: string[];
+  generatedAt: string;
 };

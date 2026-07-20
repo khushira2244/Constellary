@@ -3,7 +3,7 @@ import { ErrorState } from "@/components/ui/feedback";
 import { getBranchPageData } from "@/features/branch-reading/services";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { BranchReadingPage, ReadingIdentity } from "../reading-page";
-import { addBranchCommentAction } from "./actions";
+import { CommentComposer } from "./comment-composer";
 import { CommentEntry } from "./comment-entry";
 import { InviteCollaboratorForm } from "./invite-form";
 
@@ -26,7 +26,6 @@ export default async function CommunityPage({ params }: { params: Promise<{ bran
         .eq("status", "pending")
         .order("created_at")
     : { data: [] };
-  const addComment = addBranchCommentAction.bind(null, branchId);
   return (
     <div className="branch-atmosphere">
       <AuthenticatedHeader />
@@ -77,12 +76,7 @@ export default async function CommunityPage({ params }: { params: Promise<{ bran
               </CommentEntry>
             );
           })}</div> : <p className="reading-empty">No readable comments yet.</p>}
-          {data.capabilities.canComment ? (
-            <form className="comment-compose" action={addComment}>
-              <label><span>Add a comment</span><textarea name="content" required maxLength={5000} /></label>
-              <button type="submit">Post Comment</button>
-            </form>
-          ) : null}
+          {data.capabilities.canComment ? <CommentComposer branchId={branchId} /> : null}
         </section>
       </BranchReadingPage>
     </div>

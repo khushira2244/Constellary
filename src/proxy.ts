@@ -26,7 +26,6 @@ export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
   const isAuthRoute = pathname === "/login" || pathname === "/signup";
   const isProtectedRoute =
-    pathname === "/" ||
     pathname === "/profile" ||
     pathname === "/branches/new" ||
     pathname.includes("/workspace") ||

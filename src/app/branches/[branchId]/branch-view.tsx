@@ -18,6 +18,7 @@ import {
   branchClassification,
   branchClassificationLabel,
   branchStatusLabel,
+  connectorClassName,
   connectorThickness,
   firstSummaryParagraph,
   flattenBranchTree,
@@ -185,7 +186,7 @@ function BranchTreeItem({
   };
 
   return (
-    <div className={`branch-tree-item provenance--${kind}`} style={style}>
+    <div className={`${connectorClassName(data.linkedBranches.length)} provenance--${kind}`} style={style}>
       <div className="branch-node" aria-hidden="true" />
       <article
         className="branch-card"
@@ -202,6 +203,16 @@ function BranchTreeItem({
             <FeatureBranchButton branchId={data.branch.id} initialFeatured={data.isFeatured} />
           ) : null}
           <span className="branch-status">● {branchStatusLabel(data.branch.status)}</span>
+          {data.capabilities.canEdit ? (
+            <Link
+              aria-label="Open branch in Workspace"
+              className="branch-workspace-shortcut"
+              href={`/branches/${data.branch.id}/workspace`}
+              title="Open branch in Workspace"
+            >
+              W
+            </Link>
+          ) : null}
           {data.capabilities.role === "owner" ? (
             <button className="icon-button" onClick={onDelete} aria-label={`Delete ${data.branch.title}`} type="button">♲</button>
           ) : null}
@@ -569,17 +580,28 @@ function LinksSection({ data }: { data: BranchPageData }) {
   return (
     <div className="section-content">
       {data.linkedBranches.length ? (
-        <ul className="section-list">
+        <ul className="linked-tag-list" aria-label="Linked branches">
           {data.linkedBranches.map((link) => (
-            <li className="linked-preview-row" key={link.linkId}>
-              <div>
-                <Link href={`/branches/${link.branch.id}`}>{link.branch.title}</Link>
-                <small>{link.direction === "outgoing" ? "Outgoing" : "Incoming"} · {link.relationshipType.replaceAll("_", " ")}</small>
-                <p>{link.shortSummary ?? "No readable short summary."}</p>
-              </div>
-              <span>{branchStatusLabel(link.branch.status)} · {branchStatusLabel(link.branch.privacy)}</span>
+            <li
+              className="linked-branch-tag"
+              key={link.linkId}
+              title={`${branchStatusLabel(link.branch.status)} · ${branchStatusLabel(link.branch.privacy)} · ${link.relationshipType.replaceAll("_", " ")}`}
+            >
+              <Link href={`/branches/${link.branch.id}`}>{link.branch.title}</Link>
+              <span aria-hidden="true">·</span>
+              <small>{link.direction === "outgoing" ? "Outgoing" : "Incoming"}</small>
               {data.capabilities.canEdit && link.direction === "outgoing"
-                ? <button disabled={pending} onClick={() => remove(link.linkId)} type="button">Remove</button>
+                ? (
+                  <button
+                    aria-label={`Remove linked branch ${link.branch.title}`}
+                    disabled={pending}
+                    onClick={() => remove(link.linkId)}
+                    title={`Remove linked branch ${link.branch.title}`}
+                    type="button"
+                  >
+                    ×
+                  </button>
+                )
                 : null}
             </li>
           ))}

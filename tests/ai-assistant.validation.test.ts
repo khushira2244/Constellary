@@ -40,6 +40,17 @@ describe("AI Assistant server validation", () => {
     }).ok).toBe(false);
   });
 
+  test("requires at least one permission-safe Workspace context item", () => {
+    expect(validateAIAssistantInput({
+      prompt: "Identify the main technical risk.",
+      context: [],
+      contributionKind: "full_summary_draft",
+    })).toEqual({
+      ok: false,
+      message: "Add a Workspace item to AI context before asking GPT-5.6.",
+    });
+  });
+
   test("deduplicates valid explicit context and caps selection count", () => {
     const valid = validateAIAssistantInput({
       prompt: "  Identify open questions. ",

@@ -1,0 +1,144 @@
+CONSTELLARY HACKATHON EVALUATION LICENSE
+Version 1.0 — July 2026
+
+Copyright © 2026 Khushboo Rani. All rights reserved.
+
+## 1. Ownership
+
+Constellary’s original source code, documentation, interface artwork, written materials, database implementation, and original product-specific expression are owned by Khushboo Rani, subject to applicable third-party rights.
+
+This license does not claim ownership over:
+
+* third-party libraries, frameworks, services, APIs, models, fonts, assets, or other materials;
+* OpenAI products, services, APIs, Codex, or GPT-5.6;
+* abstract ideas, general methods, scientific principles, research fields, or concepts that are not protected by applicable intellectual-property law.
+
+No ownership rights in Constellary are transferred under this license.
+
+## 2. OpenAI Build Week Permission
+
+Permission is granted to OpenAI, Devpost, the Hackathon Sponsor, Administrator, authorized judges, testing personnel, and parties acting on their behalf to access, execute, review, test, reproduce for internal evaluation, display, and use the Submission as permitted by the OpenAI Build Week Official Rules, submission requirements, and applicable OpenAI and Devpost terms.
+
+This permission includes activities reasonably required for:
+
+* judging;
+* technical testing;
+* submission verification;
+* eligibility review;
+* security review;
+* demonstration;
+* promotion;
+* publicity; and
+* display of the Submission.
+
+Authorized parties may, where reasonably necessary for those purposes:
+
+* access the source-code repository;
+* install project dependencies;
+* configure an evaluation environment;
+* execute database migrations and tests;
+* inspect source code and documentation;
+* use provided test accounts or evaluation data;
+* run the submitted application; and
+* reproduce the submitted demonstration.
+
+## 3. Hackathon Rules and Applicable Terms
+
+This license is intended to operate consistently with the OpenAI Build Week Official Rules, submission requirements, and applicable OpenAI and Devpost terms.
+
+Nothing in this license limits any rights granted to OpenAI, Devpost, the Sponsor, Administrator, judges, testing personnel, or authorized parties under those rules and terms, including rights related to judging, verification, testing, promotion, publicity, and display of the Submission.
+
+If this license conflicts with the OpenAI Build Week Official Rules, those Official Rules control for purposes of the Hackathon.
+
+Relevant official pages:
+
+OpenAI Build Week Official Rules
+https://openai.devpost.com/rules
+
+OpenAI Build Week page and submission requirements
+https://openai.devpost.com/
+
+OpenAI Build Week FAQs
+https://openai.devpost.com/details/faqs
+
+OpenAI Terms
+https://openai.com/policies/
+
+## 4. Restrictions for Other Uses
+
+These restrictions do not apply to uses expressly authorized by the OpenAI Build Week Official Rules, submission requirements, or applicable OpenAI and Devpost terms.
+
+Except where permitted by applicable law or by a separate written agreement with the copyright holder, no other person or organization may:
+
+* copy or redistribute the proprietary source code;
+* publish, mirror, or publicly host the repository;
+* sublicense the project;
+* modify and redistribute the project;
+* commercially use the project or its proprietary implementation;
+* incorporate substantial portions of the proprietary source code into another product;
+* distribute derivative software based substantially on the proprietary implementation;
+* remove copyright, attribution, or ownership notices;
+* falsely claim authorship or ownership;
+* submit the project or its protected materials as another person’s academic, professional, commercial, or competition work;
+* use the proprietary source code to train a model or create a code-training dataset; or
+* extract and republish substantial proprietary implementation details.
+
+Access to the repository does not grant a general public, academic, research, commercial, or open-source license.
+
+## 5. Private Repository Access
+
+Where the repository is private, access may be granted to authorized OpenAI Build Week judges, testing personnel, and other authorized parties for uses permitted by the OpenAI Build Week Official Rules and applicable terms.
+
+Repository access does not transfer ownership and does not grant permission for unrelated copying, reuse, disclosure, redistribution, or commercial exploitation.
+
+## 6. Research and Thesis Material
+
+Constellary is connected to ongoing research and master’s thesis work.
+
+No permission is granted to reproduce, submit, publish, present, or claim Constellary’s protected source code, original documentation, original written expression, interface artwork, database implementation, or other copyrightable material as another person’s academic, professional, commercial, or competition work.
+
+This section does not restrict:
+
+* lawful citation;
+* independent research;
+* discussion of general ideas;
+* use of unprotected facts, methods, or concepts;
+* fair use or other rights available under applicable law; or
+* rights expressly granted under the OpenAI Build Week Official Rules and applicable terms.
+
+## 7. Third-Party Components
+
+Third-party software, services, APIs, models, frameworks, assets, fonts, and other materials used by Constellary remain governed by their respective licenses and terms.
+
+This license applies only to original Constellary material owned by Khushboo Rani.
+
+Where a third-party license grants broader or different rights to a particular component, that third-party license controls for that component.
+
+## 8. OpenAI Technology
+
+Use of OpenAI services, APIs, GPT-5.6, Codex, and related technology remains subject to the applicable OpenAI terms, policies, and service conditions.
+
+This license does not grant, restrict, transfer, or modify rights in OpenAI technology.
+
+References to OpenAI, GPT-5.6, or Codex describe tools used in the development or operation of Constellary and do not imply ownership of those technologies.
+
+## 9. No Warranty
+
+THE PROJECT IS PROVIDED “AS IS,” WITHOUT WARRANTIES OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, ACCURACY, AVAILABILITY, SECURITY, TITLE, AND NON-INFRINGEMENT.
+
+THE PROJECT IS UNDER ACTIVE DEVELOPMENT AND MAY CONTAIN INCOMPLETE FUNCTIONALITY, DEFECTS, CONFIGURATION REQUIREMENTS, OR OTHER LIMITATIONS.
+
+## 10. Limitation of Liability
+
+TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, THE COPYRIGHT HOLDER SHALL NOT BE LIABLE FOR ANY CLAIM, LOSS, DAMAGE, COST, OR OTHER LIABILITY ARISING FROM ACCESS TO, TESTING OF, OR USE OF THE PROJECT.
+
+## 11. Additional Permission
+
+Any use not permitted by this license, the OpenAI Build Week Official Rules, applicable OpenAI or Devpost terms, applicable third-party licenses, or applicable law requires prior written permission from the copyright holder.
+
+Copyright holder:
+
+Khushboo Rani
+Project: Constellary
+
+All rights not expressly granted are reserved.

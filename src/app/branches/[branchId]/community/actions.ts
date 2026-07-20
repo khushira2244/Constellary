@@ -9,7 +9,12 @@ export async function addBranchCommentAction(branchId: string, formData: FormDat
   const content = String(formData.get("content") ?? "");
   const client = await createServerSupabaseClient();
   const result = await addComment(branchId, content, undefined, client);
-  if (result.ok) revalidatePath(`/branches/${branchId}/community`);
+  if (!result.ok) {
+    return { ok: false as const, message: result.error.message };
+  }
+  revalidatePath(`/branches/${branchId}/community`);
+  revalidatePath(`/branches/${branchId}`);
+  return { ok: true as const, message: "Comment posted." };
 }
 
 export async function inviteCollaboratorAction(branchId: string, email: string) {
@@ -26,7 +31,10 @@ export async function inviteCollaboratorAction(branchId: string, email: string) 
 export async function updateBranchCommentAction(branchId: string, commentId: string, content: string) {
   const client = await createServerSupabaseClient();
   const result = await updateComment(commentId, content, client);
-  if (result.ok) revalidatePath(`/branches/${branchId}/community`);
+  if (result.ok) {
+    revalidatePath(`/branches/${branchId}/community`);
+    revalidatePath(`/branches/${branchId}`);
+  }
   return result.ok
     ? { ok: true as const }
     : { ok: false as const, message: result.error.message };

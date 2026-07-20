@@ -50,7 +50,7 @@ export function SignupForm({ returnTo }: { returnTo: string }) {
         </div>
         <form action={formAction} noValidate>
           <input name="returnTo" type="hidden" value={returnTo} />
-          <div className="auth-field-grid">
+          <div className="auth-field-grid auth-field-grid--identity">
             <Field label="Display name" error={errors.displayName}>
               <Input
                 autoComplete="name"

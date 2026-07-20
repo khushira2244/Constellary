@@ -120,6 +120,9 @@ export async function requestAIAssistance(
   if (!access.ok) return access;
   const page = await getBranchPageData(input.branchId, client);
   if (!page.ok) return page;
+  if (valid.data.context.includes("summary") && !page.data.fullSummary?.content.trim()) {
+    return fail("VALIDATION_ERROR", "Save a Full Summary before adding it to AI context.");
+  }
 
   const selected = valid.data.context.map((kind) => selectedContext(kind, page.data));
   const contextText = selected.map(([label, content]) => `## ${label}\n${content}`).join("\n\n");
@@ -160,8 +163,12 @@ export async function requestAIAssistance(
       text: output,
       model,
       contextLabels: selected.map(([label]) => label),
+      generatedAt: contribution.data.created_at,
     });
   } catch {
-    return fail("DATABASE_ERROR", "The AI request could not be completed. Please try again later.");
+    return fail(
+      "DATABASE_ERROR",
+      "The AI response could not be generated. Your research was not changed.",
+    );
   }
 }

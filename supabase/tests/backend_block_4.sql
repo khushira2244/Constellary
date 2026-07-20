@@ -2,7 +2,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select extensions.plan(10);
+select extensions.plan(15);
 
 insert into auth.users (
   id, aud, role, email, encrypted_password, email_confirmed_at,
@@ -17,7 +17,9 @@ from (values
   ('d4000000-0000-4000-8000-000000000001'::uuid, 'block4-owner@test.local', 'Owner', 'block4owner'),
   ('d4000000-0000-4000-8000-000000000002'::uuid, 'block4-editor@test.local', 'Editor', 'block4editor'),
   ('d4000000-0000-4000-8000-000000000003'::uuid, 'block4-commenter@test.local', 'Commenter', 'block4commenter'),
-  ('d4000000-0000-4000-8000-000000000004'::uuid, 'block4-viewer@test.local', 'Viewer', 'block4viewer')
+  ('d4000000-0000-4000-8000-000000000004'::uuid, 'block4-viewer@test.local', 'Viewer', 'block4viewer'),
+  ('d4000000-0000-4000-8000-000000000005'::uuid, 'block4-pending@test.local', 'Pending', 'block4pending'),
+  ('d4000000-0000-4000-8000-000000000006'::uuid, 'block4-outsider@test.local', 'Outsider', 'block4outsider')
 ) users(id, email, label, username);
 
 select set_config('request.jwt.claim.sub', 'd4000000-0000-4000-8000-000000000001', true);
@@ -46,7 +48,6 @@ insert into block4_branches values
   ('main', (public.confirm_branch_draft('d4000000-0000-4000-8000-000000000010')->>'branch_id')::uuid),
   ('other', (public.confirm_branch_draft('d4000000-0000-4000-8000-000000000011')->>'branch_id')::uuid);
 grant select on table block4_branches to authenticated;
-grant execute on function public.validate_branch_target(uuid, text, uuid) to authenticated;
 
 select extensions.ok(
   (select ai_enabled from public.branches where id = (select id from block4_branches where label='main')),
@@ -100,6 +101,40 @@ insert into public.workspace_items (
   'd4000000-0000-4000-8000-000000000001'
 );
 select extensions.pass('owner can create a Workspace item');
+
+insert into public.comments (
+  id, branch_id, target_type, target_id, author_id, content, visibility
+) values (
+  'd4000000-0000-4000-8000-000000000030',
+  (select id from block4_branches where label='main'),
+  'branch', (select id from block4_branches where label='main'),
+  'd4000000-0000-4000-8000-000000000001',
+  'Owner discussion', 'branch_members'
+);
+select extensions.pass('owner can create a branch comment');
+
+select extensions.ok(
+  exists (
+    select 1 from public.comments
+    where id = 'd4000000-0000-4000-8000-000000000030'
+      and branch_id = (select id from block4_branches where label='main')
+  )
+  and not exists (
+    select 1 from public.comments
+    where id = 'd4000000-0000-4000-8000-000000000030'
+      and branch_id = (select id from block4_branches where label='other')
+  ),
+  'comment is stored against only the exact branch'
+);
+
+insert into public.collaboration_invites (
+  branch_id, inviter_id, invitee_email, role, access_scope, token_hash
+) values (
+  (select id from block4_branches where label='main'),
+  'd4000000-0000-4000-8000-000000000001',
+  'block4-pending@test.local', 'commenter', 'entire_branch',
+  encode(extensions.digest('block4-pending-token', 'sha256'), 'hex')
+);
 
 do $$
 begin
@@ -161,14 +196,23 @@ end;
 $$;
 select extensions.pass('commenter cannot create a Workspace item');
 insert into public.comments (
-  branch_id, target_type, target_id, author_id, content, visibility
+  id, branch_id, target_type, target_id, author_id, content, visibility
 ) values (
+  'd4000000-0000-4000-8000-000000000031',
   (select id from block4_branches where label='main'),
   'branch', (select id from block4_branches where label='main'),
   'd4000000-0000-4000-8000-000000000003',
   'Allowed commenter discussion', 'branch_members'
 );
 select extensions.pass('commenter can create a branch comment');
+update public.comments
+set content = 'Edited commenter discussion'
+where id = 'd4000000-0000-4000-8000-000000000031';
+select extensions.is(
+  (select content from public.comments where id = 'd4000000-0000-4000-8000-000000000031'),
+  'Edited commenter discussion',
+  'comment author can edit their own comment'
+);
 
 reset role;
 select set_config('request.jwt.claim.sub', 'd4000000-0000-4000-8000-000000000004', true);
@@ -195,6 +239,48 @@ begin
 end;
 $$;
 select extensions.pass('viewer cannot create a branch comment');
+
+reset role;
+select set_config('request.jwt.claim.sub', 'd4000000-0000-4000-8000-000000000005', true);
+select set_config(
+  'request.jwt.claims',
+  '{"sub":"d4000000-0000-4000-8000-000000000005","email":"block4-pending@test.local","role":"authenticated"}',
+  true
+);
+set local role authenticated;
+select extensions.throws_ok(
+  format(
+    'insert into public.comments (branch_id, target_type, target_id, author_id, content)
+     values (%L, ''branch'', %L, %L, ''Pending invite comment'')',
+    (select id from block4_branches where label='main'),
+    (select id from block4_branches where label='main'),
+    'd4000000-0000-4000-8000-000000000005'
+  ),
+  '42501',
+  null,
+  'pending invite cannot create a comment'
+);
+
+reset role;
+select set_config('request.jwt.claim.sub', 'd4000000-0000-4000-8000-000000000006', true);
+select set_config(
+  'request.jwt.claims',
+  '{"sub":"d4000000-0000-4000-8000-000000000006","email":"block4-outsider@test.local","role":"authenticated"}',
+  true
+);
+set local role authenticated;
+select extensions.throws_ok(
+  format(
+    'insert into public.comments (branch_id, target_type, target_id, author_id, content)
+     values (%L, ''branch'', %L, %L, ''Outsider comment'')',
+    (select id from block4_branches where label='main'),
+    (select id from block4_branches where label='main'),
+    'd4000000-0000-4000-8000-000000000006'
+  ),
+  '42501',
+  null,
+  'unauthorized user cannot create a comment'
+);
 
 reset role;
 select * from extensions.finish();

@@ -9,6 +9,7 @@ describe("simplified collaboration and comments", () => {
   const community = read("src/app/branches/[branchId]/community/page.tsx");
   const actions = read("src/app/branches/[branchId]/community/actions.ts");
   const comment = read("src/app/branches/[branchId]/community/comment-entry.tsx");
+  const composer = read("src/app/branches/[branchId]/community/comment-composer.tsx");
   const migration = read("supabase/migrations/017_simple_collaboration_flow.sql");
   const css = read("src/app/globals.css");
 
@@ -50,6 +51,25 @@ describe("simplified collaboration and comments", () => {
     expect(comment).toContain(">Edit</button>");
     expect(comment).not.toContain("Delete");
     expect(actions).not.toContain("deleteComment");
+  });
+
+  test("comment creation reports failures, refreshes both reads, and clears only after success", () => {
+    expect(actions).toContain('revalidatePath(`/branches/${branchId}/community`)');
+    expect(actions).toContain('revalidatePath(`/branches/${branchId}`)');
+    expect(actions).toContain("result.error.message");
+    expect(composer).toContain("if (result.ok)");
+    expect(composer).toContain("formRef.current?.reset()");
+    expect(composer).toContain("router.refresh()");
+    expect(composer).toContain('role={isError ? "alert" : "status"}');
+  });
+
+  test("comment reads and previews stay scoped to the exact branch", () => {
+    const repository = read("src/features/branch-reading/repository.ts");
+    expect(repository).toContain('.from("comments")');
+    expect(repository).toContain('.eq("branch_id", branchId)');
+    expect(view).toContain("data.comments.slice(-3).reverse()");
+    expect(view).toContain("<ProfileDot");
+    expect(view).toContain("comment.created_at");
   });
 
   test("both previews target the exact branch community anchors", () => {

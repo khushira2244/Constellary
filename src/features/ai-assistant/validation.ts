@@ -35,6 +35,12 @@ export function validateAIAssistantInput(input: {
     return { ok: false as const, message: `Prompt must be ${MAX_AI_PROMPT_LENGTH} characters or fewer.` };
   }
   const context = [...new Set(input.context)];
+  if (context.length === 0) {
+    return {
+      ok: false as const,
+      message: "Add a Workspace item to AI context before asking GPT-5.6.",
+    };
+  }
   if (context.length > MAX_AI_CONTEXT_ITEMS || context.some((kind) => !contextKinds.has(kind))) {
     return { ok: false as const, message: "Selected AI context is invalid or too large." };
   }

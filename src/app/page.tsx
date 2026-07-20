@@ -3,6 +3,7 @@ import Link from "next/link";
 import { AuthenticatedHeader } from "@/components/layout/authenticated-header";
 import { FeatureBranchButton } from "@/components/branches/feature-branch-button";
 import { ErrorState } from "@/components/ui/feedback";
+import { WelcomePage } from "@/components/welcome/welcome-page";
 import { safeArchiveFilters } from "@/features/dashboard/model";
 import { getDashboardData } from "@/features/dashboard/services";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
@@ -20,8 +21,11 @@ export default async function HomePage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const params = await searchParams;
-  const filters = safeArchiveFilters(params);
   const client = await createServerSupabaseClient();
+  const { data: auth } = await client.auth.getUser();
+  if (!auth.user) return <WelcomePage />;
+
+  const filters = safeArchiveFilters(params);
   const result = await getDashboardData(client, filters);
 
   if (!result.ok) {

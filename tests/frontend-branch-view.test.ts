@@ -3,6 +3,7 @@ import { describe, expect, test } from "vitest";
 import {
   branchClassification,
   branchClassificationLabel,
+  connectorClassName,
   connectorThickness,
   firstSummaryParagraph,
   flattenBranchTree,
@@ -46,5 +47,11 @@ describe("confirmed Branch View model", () => {
 
   test("bounds linked-branch connector emphasis without changing ancestry", () => {
     expect([0, 1, 2, 3, 5, 6, 20].map(connectorThickness)).toEqual([1, 2, 2, 3, 3, 4, 4]);
+  });
+
+  test("uses linked connector styling only when the exact accessible count is positive", () => {
+    expect(connectorClassName(0)).toBe("branch-tree-item");
+    expect(connectorClassName(1)).toBe("branch-tree-item branch-tree-item--linked");
+    expect(connectorClassName(4)).toBe("branch-tree-item branch-tree-item--linked");
   });
 });

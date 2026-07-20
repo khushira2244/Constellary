@@ -33,6 +33,12 @@ export function connectorThickness(linkCount: number) {
   return 1;
 }
 
+export function connectorClassName(linkCount: number) {
+  return linkCount > 0
+    ? "branch-tree-item branch-tree-item--linked"
+    : "branch-tree-item";
+}
+
 export function flattenBranchTree(
   node: BranchTreeNode,
   depth = 0,
