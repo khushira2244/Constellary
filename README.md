@@ -4,7 +4,8 @@
 
 Constellary is a provenance-first research workspace that preserves how research develops across branches, earlier work, collaborators, decisions, sources, and attributed AI contributions.
 
-<!-- ![Constellary homepage](docs/images/constellary-homepage.png) -->
+<img width="592" height="296" alt="Screenshot 2026-07-21 223146" src="https://github.com/user-attachments/assets/ae5980b0-1f4b-4117-81bf-ad4f8cf49e34" />
+
 
 ## Explore Constellary
 
@@ -102,7 +103,8 @@ Important provenance, collaboration, permission, and privacy rules are not enfor
 
 PostgreSQL constraints, transactional functions, triggers, and row-level security help protect confirmed branch identity, ancestry, ownership, attribution, and access.
 
-![Constellary system architecture](docs/images/constellary-system-architecture.png)
+<img width="1536" height="1024" alt="constellary_architecture" src="https://github.com/user-attachments/assets/5cc65715-68b5-4d3a-a5bb-8593ec770b18" />
+
 
 Read the complete technical design in [Architecture](docs/ARCHITECTURE.md).
 
@@ -152,7 +154,7 @@ The Branch Page remains primarily for understanding, navigating, sharing, and di
 
 Deeper editing belongs inside Workspace.
 
-![Constellary Workspace](docs/images/constellary-workspace.png)
+
 
 ## GPT-5.6 Inside Constellary
 
