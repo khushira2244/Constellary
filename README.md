@@ -108,9 +108,56 @@ PostgreSQL constraints, transactional functions, triggers, and row-level securit
 
 Read the complete technical design in [Architecture](docs/ARCHITECTURE.md).
 
-## Branches, Subbranches, and Linked Research
+## Branches, Subbranches, Dashboard and Linked Research
 
 Constellary keeps direct ancestry separate from wider research influence.
+
+## Dashboard and Researcher Profile
+
+The Dashboard gives each researcher a branch-derived overview of their work.
+
+It shows:
+
+- researcher identity and research focus;
+- branch, collaborator, and linked-branch statistics;
+- Featured Branches pinned by the researcher;
+- the searchable Branch Archive;
+- recent provenance activity;
+- shared and accessible research;
+- and a direct path back into active work.
+
+The profile is not only a list of final publications.
+
+It represents a developing research identity built from branches, collaborations, linked work, visible contributions, and research activity over time.
+
+Featured Branches are real branches from the main branch system. There is no separate Idea object or separate idea-management model.
+
+Private branches and restricted collaborator information remain protected and do not become public through profile statistics.
+
+## Dashboard and Researcher Profile
+
+The Dashboard gives each researcher a branch-derived overview of their work.
+
+It shows:
+
+- researcher identity and research focus;
+- branch, collaborator, and linked-branch statistics;
+- Featured Branches pinned by the researcher;
+- the searchable Branch Archive;
+- recent provenance activity;
+- shared and accessible research;
+- and a direct path back into active work.
+
+The profile is not only a list of final publications.
+
+It represents a developing research identity built from branches, collaborations, linked work, visible contributions, and research activity over time.
+
+Featured Branches are real branches from the main branch system. There is no separate Idea object or separate idea-management model.
+
+Private branches and restricted collaborator information remain protected and do not become public through profile statistics.
+
+<img width="935" height="467" alt="Screenshot 2026-07-21 225015" src="https://github.com/user-attachments/assets/2be7b66b-2922-4a9a-8ed1-e32479f6b5de" />
+
 
 ### Parent Branch
 
