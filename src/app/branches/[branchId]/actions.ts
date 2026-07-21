@@ -9,6 +9,7 @@ import {
   updateBranchPrivacy,
 } from "@/features/branch-management/services";
 import { searchAccessibleBranches } from "@/features/branch-links/services";
+import { getLinkedBranches } from "@/features/branch-reading/services";
 import {
   createFullSummary,
   createNote,
@@ -37,7 +38,12 @@ export async function addLinkedBranchAction(branchId: string, targetBranchId: st
   );
   if (!result.ok) return { ok: false as const, message: result.error.message };
   revalidatePath(`/branches/${branchId}`);
-  return { ok: true as const };
+  const links = await getLinkedBranches(branchId, client);
+  if (!links.ok) return { ok: false as const, message: links.error.message };
+  const link = links.data.find((item) => item.linkId === result.data.id);
+  return link
+    ? { ok: true as const, data: link }
+    : { ok: false as const, message: "The link was saved but could not be displayed yet." };
 }
 
 export async function removeLinkedBranchAction(branchId: string, linkId: string) {
@@ -45,7 +51,7 @@ export async function removeLinkedBranchAction(branchId: string, linkId: string)
   const result = await removeLinkedBranch(linkId, client);
   if (!result.ok) return { ok: false as const, message: result.error.message };
   revalidatePath(`/branches/${branchId}`);
-  return { ok: true as const };
+  return { ok: true as const, data: result.data };
 }
 
 export async function saveBranchSummaryAction(
@@ -73,7 +79,7 @@ export async function saveBranchNoteAction(
     : await createNote(branchId, content, undefined, client);
   if (!result.ok) return { ok: false as const, message: result.error.message };
   revalidatePath(`/branches/${branchId}`);
-  return { ok: true as const };
+  return { ok: true as const, data: result.data };
 }
 
 export async function deleteBranchNoteAction(branchId: string, noteId: string) {
@@ -81,7 +87,7 @@ export async function deleteBranchNoteAction(branchId: string, noteId: string) {
   const result = await deleteWorkspaceItem(noteId, client);
   if (!result.ok) return { ok: false as const, message: result.error.message };
   revalidatePath(`/branches/${branchId}`);
-  return { ok: true as const };
+  return { ok: true as const, data: result.data };
 }
 
 export async function deleteBranchAction(branchId: string) {

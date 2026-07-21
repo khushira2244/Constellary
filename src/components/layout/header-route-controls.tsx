@@ -13,8 +13,7 @@ export function HeaderRouteControls({
   const pathname = usePathname();
   const homeActive = pathname === "/";
   const createActive =
-    pathname === "/branches/new"
-    || /^\/branches\/[^/]+\/new(?:\/|$)/.test(pathname)
+    /^\/branches\/[^/]+\/new(?:\/|$)/.test(pathname)
     || /^\/branches\/drafts\/[^/]+\/workspace(?:\/|$)/.test(pathname);
   return (
     <div className="header-route-controls">

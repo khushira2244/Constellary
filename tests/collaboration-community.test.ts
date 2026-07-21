@@ -10,6 +10,7 @@ describe("simplified collaboration and comments", () => {
   const actions = read("src/app/branches/[branchId]/community/actions.ts");
   const comment = read("src/app/branches/[branchId]/community/comment-entry.tsx");
   const composer = read("src/app/branches/[branchId]/community/comment-composer.tsx");
+  const thread = read("src/app/branches/[branchId]/community/comment-thread.tsx");
   const migration = read("supabase/migrations/017_simple_collaboration_flow.sql");
   const css = read("src/app/globals.css");
 
@@ -46,20 +47,22 @@ describe("simplified collaboration and comments", () => {
 
   test("comments can be created and only their author receives Edit", () => {
     expect(community).toContain("data.capabilities.canComment");
-    expect(community).toContain("comment.author_id === user?.id");
+    expect(thread).toContain("comment.author_id === currentUserId");
     expect(comment).toContain("updateBranchCommentAction");
     expect(comment).toContain(">Edit</button>");
     expect(comment).not.toContain("Delete");
     expect(actions).not.toContain("deleteComment");
   });
 
-  test("comment creation reports failures, refreshes both reads, and clears only after success", () => {
+  test("comment creation reports failures, revalidates future reads, and updates locally", () => {
     expect(actions).toContain('revalidatePath(`/branches/${branchId}/community`)');
     expect(actions).toContain('revalidatePath(`/branches/${branchId}`)');
     expect(actions).toContain("result.error.message");
     expect(composer).toContain("if (result.ok)");
-    expect(composer).toContain("formRef.current?.reset()");
-    expect(composer).toContain("router.refresh()");
+    expect(composer).toContain("onAdded(result.data)");
+    expect(composer).toContain('setContent("")');
+    expect(composer).not.toContain("router.refresh()");
+    expect(thread).toContain("current.map((item) => item.id === updated.id ? updated : item)");
     expect(composer).toContain('role={isError ? "alert" : "status"}');
   });
 

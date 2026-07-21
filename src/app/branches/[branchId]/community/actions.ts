@@ -14,7 +14,7 @@ export async function addBranchCommentAction(branchId: string, formData: FormDat
   }
   revalidatePath(`/branches/${branchId}/community`);
   revalidatePath(`/branches/${branchId}`);
-  return { ok: true as const, message: "Comment posted." };
+  return { ok: true as const, message: "Comment posted.", data: result.data };
 }
 
 export async function inviteCollaboratorAction(branchId: string, email: string) {
@@ -36,6 +36,6 @@ export async function updateBranchCommentAction(branchId: string, commentId: str
     revalidatePath(`/branches/${branchId}`);
   }
   return result.ok
-    ? { ok: true as const }
+    ? { ok: true as const, data: result.data }
     : { ok: false as const, message: result.error.message };
 }

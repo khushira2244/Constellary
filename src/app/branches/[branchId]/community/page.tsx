@@ -3,11 +3,8 @@ import { ErrorState } from "@/components/ui/feedback";
 import { getBranchPageData } from "@/features/branch-reading/services";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { BranchReadingPage, ReadingIdentity } from "../reading-page";
-import { CommentComposer } from "./comment-composer";
-import { CommentEntry } from "./comment-entry";
+import { CommentThread } from "./comment-thread";
 import { InviteCollaboratorForm } from "./invite-form";
-
-const roleLabel = (value: string) => value.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 
 export default async function CommunityPage({ params }: { params: Promise<{ branchId: string }> }) {
   const { branchId } = await params;
@@ -60,23 +57,13 @@ export default async function CommunityPage({ params }: { params: Promise<{ bran
         </section>
         <section className="reading-section" id="comments" tabIndex={-1}>
           <h2>Comments</h2>
-          {data.comments.length ? <div className="comment-reading-list">{data.comments.map((comment) => {
-            const author = data.authors.find((profile) => profile.id === comment.author_id);
-            const name = author?.display_name ?? author?.username ?? "Research contributor";
-            return (
-              <CommentEntry
-                branchId={branchId}
-                commentId={comment.id}
-                content={comment.content}
-                canChange={comment.author_id === user?.id}
-                key={comment.id}
-              >
-                <ReadingIdentity name={name} avatarUrl={author?.avatar_url} />
-                <small>{roleLabel(comment.target_type)} · {new Date(comment.created_at).toLocaleString()}{comment.updated_at !== comment.created_at ? " · Edited" : ""}</small>
-              </CommentEntry>
-            );
-          })}</div> : <p className="reading-empty">No readable comments yet.</p>}
-          {data.capabilities.canComment ? <CommentComposer branchId={branchId} /> : null}
+          <CommentThread
+            branchId={branchId}
+            initialComments={data.comments}
+            authors={data.authors}
+            currentUserId={user?.id ?? null}
+            canComment={data.capabilities.canComment}
+          />
         </section>
       </BranchReadingPage>
     </div>

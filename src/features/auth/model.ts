@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const DEFAULT_AUTH_RETURN_PATH = "/branches/new";
+export const DEFAULT_AUTH_RETURN_PATH = "/";
 
 export const loginSchema = z.object({
   email: z.string().trim().email("Enter a valid email address."),
@@ -46,6 +46,7 @@ export function safeInternalReturnPath(value: string | null | undefined): string
   try {
     const url = new URL(value, "http://constellary.local");
     if (url.origin !== "http://constellary.local") return DEFAULT_AUTH_RETURN_PATH;
+    if (url.pathname === "/branches/new") return DEFAULT_AUTH_RETURN_PATH;
     return `${url.pathname}${url.search}${url.hash}`;
   } catch {
     return DEFAULT_AUTH_RETURN_PATH;

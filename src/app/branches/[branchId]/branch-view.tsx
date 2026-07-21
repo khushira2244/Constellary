@@ -54,7 +54,8 @@ const primaryActions: { id: SectionName; label: string; icon: string }[] = [
 
 export function BranchView({ root }: { root: BranchTreeNode }) {
   const router = useRouter();
-  const branches = useMemo(() => flattenBranchTree(root), [root]);
+  const [tree, setTree] = useState(root);
+  const branches = useMemo(() => flattenBranchTree(tree), [tree]);
   const [preview, setPreview] = useState<BranchPageData | null>(null);
   const [open, setOpen] = useState<{ branchId: string; section: SectionName } | null>(null);
   const [deleting, setDeleting] = useState<BranchPageData | null>(null);
@@ -67,6 +68,13 @@ export function BranchView({ root }: { root: BranchTreeNode }) {
         ? null
         : { branchId, section },
     );
+  }
+
+  function updateBranchData(
+    branchId: string,
+    update: (current: BranchPageData) => BranchPageData,
+  ) {
+    setTree((current) => updateBranchTree(current, branchId, update));
   }
 
   function confirmDelete() {
@@ -101,8 +109,8 @@ export function BranchView({ root }: { root: BranchTreeNode }) {
       </aside>
 
       <section className="provenance-region" aria-label="Branch provenance">
-        <OriginalIdeaBox data={root.data} onDelete={() => setDeleting(root.data)} />
-        <div className={`provenance-origin-node provenance--${branchClassification(root.data)}`} />
+        <OriginalIdeaBox data={tree.data} onDelete={() => setDeleting(tree.data)} />
+        <div className={`provenance-origin-node provenance--${branchClassification(tree.data)}`} />
 
         <div className="provenance-tree">
           {branches.map(({ node, depth }) => (
@@ -112,6 +120,7 @@ export function BranchView({ root }: { root: BranchTreeNode }) {
               depth={depth}
               open={open?.branchId === node.data.branch.id ? open.section : null}
               onOpen={(section) => toggle(node.data.branch.id, section)}
+              onDataChange={(update) => updateBranchData(node.data.branch.id, update)}
               onPreview={setPreview}
               onDelete={() => {
                 setDeleteError(null);
@@ -136,6 +145,18 @@ export function BranchView({ root }: { root: BranchTreeNode }) {
       ) : null}
     </main>
   );
+}
+
+function updateBranchTree(
+  node: BranchTreeNode,
+  branchId: string,
+  update: (current: BranchPageData) => BranchPageData,
+): BranchTreeNode {
+  if (node.data.branch.id === branchId) return { ...node, data: update(node.data) };
+  const children = node.children.map((child) => updateBranchTree(child, branchId, update));
+  return children.some((child, index) => child !== node.children[index])
+    ? { ...node, children }
+    : node;
 }
 
 function OriginalIdeaBox({
@@ -166,6 +187,7 @@ function BranchTreeItem({
   depth,
   open,
   onOpen,
+  onDataChange,
   onPreview,
   onDelete,
 }: {
@@ -173,6 +195,7 @@ function BranchTreeItem({
   depth: number;
   open: SectionName | null;
   onOpen: (section: SectionName) => void;
+  onDataChange: (update: (current: BranchPageData) => BranchPageData) => void;
   onPreview: (data: BranchPageData | null) => void;
   onDelete: () => void;
 }) {
@@ -220,7 +243,7 @@ function BranchTreeItem({
         <BranchActionRow data={data} open={open} onOpen={onOpen} />
       </article>
 
-      {open ? <BranchSectionPanel data={data} section={open} onClose={() => onOpen(open)} /> : null}
+      {open ? <BranchSectionPanel data={data} section={open} onClose={() => onOpen(open)} onDataChange={onDataChange} /> : null}
 
       {data.capabilities.canEdit ? (
         <div className="add-subbranch-wrap">
@@ -327,10 +350,12 @@ function BranchSectionPanel({
   data,
   section,
   onClose,
+  onDataChange,
 }: {
   data: BranchPageData;
   section: SectionName;
   onClose: () => void;
+  onDataChange: (update: (current: BranchPageData) => BranchPageData) => void;
 }) {
   const fullView = section === "links"
     ? { href: `/branches/${data.branch.id}/links`, label: "Open full linked branches view" }
@@ -348,18 +373,24 @@ function BranchSectionPanel({
           <button onClick={onClose} type="button" aria-label={`Close ${section}`}>×</button>
         </div>
       </div>
-      {section === "summary" ? <SummarySection data={data} /> : null}
-      {section === "notes" ? <NotesSection data={data} /> : null}
+      {section === "summary" ? <SummarySection data={data} onDataChange={onDataChange} /> : null}
+      {section === "notes" ? <NotesSection data={data} onDataChange={onDataChange} /> : null}
       {section === "comments" ? <CommentsSection data={data} /> : null}
-      {section === "links" ? <LinksSection data={data} /> : null}
+      {section === "links" ? <LinksSection data={data} onDataChange={onDataChange} /> : null}
       {section === "collaborators" ? <CollaboratorsSection data={data} /> : null}
       {section === "ai" ? <AIRoleSection data={data} /> : null}
     </section>
   );
 }
 
-function SummarySection({ data }: { data: BranchPageData }) {
-  const summary = data.fullSummary;
+function SummarySection({
+  data,
+  onDataChange,
+}: {
+  data: BranchPageData;
+  onDataChange: (update: (current: BranchPageData) => BranchPageData) => void;
+}) {
+  const [summary, setSummary] = useState(data.fullSummary);
   const readable = summary ?? data.shortSummary;
   const [editing, setEditing] = useState(false);
   const [content, setContent] = useState(summary?.content ?? "");
@@ -387,6 +418,9 @@ function SummarySection({ data }: { data: BranchPageData }) {
                   setMessage(result.message);
                   return;
                 }
+                setSummary(result.data);
+                setContent(result.data.content);
+                onDataChange((current) => ({ ...current, fullSummary: result.data }));
                 setState("saved");
                 setEditing(false);
               });
@@ -413,15 +447,22 @@ function SummarySection({ data }: { data: BranchPageData }) {
   );
 }
 
-function NotesSection({ data }: { data: BranchPageData }) {
+function NotesSection({
+  data,
+  onDataChange,
+}: {
+  data: BranchPageData;
+  onDataChange: (update: (current: BranchPageData) => BranchPageData) => void;
+}) {
+  const [notes, setNotes] = useState(data.notes);
   const [draft, setDraft] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   return (
     <div className="section-content">
-      {data.notes.length ? <ul className="section-list">
-        {data.notes.map((note) => (
+      {notes.length ? <ul className="section-list">
+        {notes.map((note) => (
           <li key={note.id}>
             <strong>{note.title ?? "Note"}</strong><span>{noteContent(note.content)}</span>
             {data.capabilities.canEdit ? <div className="compact-row-actions">
@@ -430,8 +471,14 @@ function NotesSection({ data }: { data: BranchPageData }) {
                 if (!window.confirm("Delete this note?")) return;
                 startTransition(async () => {
                   const result = await deleteBranchNoteAction(data.branch.id, note.id);
-                  setMessage(result.ok ? "Note deleted. Refreshing…" : result.message);
-                  if (result.ok) window.location.reload();
+                  if (!result.ok) {
+                    setMessage(result.message);
+                    return;
+                  }
+                  const next = notes.filter((item) => item.id !== result.data.id);
+                  setNotes(next);
+                  onDataChange((current) => ({ ...current, notes: next }));
+                  setMessage("Note deleted.");
                 });
               }} type="button">Delete</button>
             </div> : null}
@@ -442,9 +489,19 @@ function NotesSection({ data }: { data: BranchPageData }) {
         <textarea aria-label={editingId ? "Edit note" : "New note"} value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="Write a research note…" />
         <button disabled={pending || !draft.trim()} onClick={() => startTransition(async () => {
           const result = await saveBranchNoteAction(data.branch.id, editingId, draft);
-          setMessage(result.ok ? "Note saved. Refreshing…" : result.message);
-          if (result.ok) window.location.reload();
-        })} type="button">{editingId ? "Save Note" : "Add Note"}</button>
+          if (!result.ok) {
+            setMessage(result.message);
+            return;
+          }
+          const next = editingId
+            ? notes.map((note) => note.id === result.data.id ? result.data : note)
+            : [...notes, result.data];
+          setNotes(next);
+          onDataChange((current) => ({ ...current, notes: next }));
+          setEditingId(null);
+          setDraft("");
+          setMessage("Note saved.");
+        })} type="button">{pending ? (editingId ? "Saving…" : "Adding…") : editingId ? "Save Note" : "Add Note"}</button>
         {editingId ? <button onClick={() => { setEditingId(null); setDraft(""); }} type="button">Cancel</button> : null}
         {message ? <p className="section-message" role="alert">{message}</p> : null}
       </div> : null}
@@ -539,11 +596,19 @@ function AIRoleSection({ data }: { data: BranchPageData }) {
   );
 }
 
-function LinksSection({ data }: { data: BranchPageData }) {
+function LinksSection({
+  data,
+  onDataChange,
+}: {
+  data: BranchPageData;
+  onDataChange: (update: (current: BranchPageData) => BranchPageData) => void;
+}) {
+  const [links, setLinks] = useState(data.linkedBranches);
   const [searching, setSearching] = useState(false);
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<{ id: string; title: string }[]>([]);
   const [message, setMessage] = useState<string | null>(null);
+  const [busyLink, setBusyLink] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
   function search() {
@@ -558,30 +623,41 @@ function LinksSection({ data }: { data: BranchPageData }) {
     });
   }
 
-  function add(targetId: string) {
+  async function add(targetId: string) {
     setMessage(null);
-    startTransition(async () => {
-      const result = await addLinkedBranchAction(data.branch.id, targetId);
-      setMessage(result.ok ? "Linked branch added. Refreshing…" : result.message);
-      if (result.ok) window.location.reload();
-    });
+    setBusyLink(`add:${targetId}`);
+    const result = await addLinkedBranchAction(data.branch.id, targetId);
+    if (!result.ok) setMessage(result.message);
+    else {
+      const next = [...links, result.data];
+      setLinks(next);
+      onDataChange((current) => ({ ...current, linkedBranches: next }));
+      setResults((current) => current.filter((item) => item.id !== targetId));
+      setMessage("Linked branch added.");
+    }
+    setBusyLink(null);
   }
 
-  function remove(linkId: string) {
+  async function remove(linkId: string) {
     if (!window.confirm("Remove this linked-branch relationship?")) return;
     setMessage(null);
-    startTransition(async () => {
-      const result = await removeLinkedBranchAction(data.branch.id, linkId);
-      setMessage(result.ok ? "Linked branch removed. Refreshing…" : result.message);
-      if (result.ok) window.location.reload();
-    });
+    setBusyLink(`remove:${linkId}`);
+    const result = await removeLinkedBranchAction(data.branch.id, linkId);
+    if (!result.ok) setMessage(result.message);
+    else {
+      const next = links.filter((link) => link.linkId !== result.data.id);
+      setLinks(next);
+      onDataChange((current) => ({ ...current, linkedBranches: next }));
+      setMessage("Linked branch removed.");
+    }
+    setBusyLink(null);
   }
 
   return (
     <div className="section-content">
-      {data.linkedBranches.length ? (
+      {links.length ? (
         <ul className="linked-tag-list" aria-label="Linked branches">
-          {data.linkedBranches.map((link) => (
+          {links.map((link) => (
             <li
               className="linked-branch-tag"
               key={link.linkId}
@@ -594,12 +670,12 @@ function LinksSection({ data }: { data: BranchPageData }) {
                 ? (
                   <button
                     aria-label={`Remove linked branch ${link.branch.title}`}
-                    disabled={pending}
+                    disabled={busyLink === `remove:${link.linkId}`}
                     onClick={() => remove(link.linkId)}
                     title={`Remove linked branch ${link.branch.title}`}
                     type="button"
                   >
-                    ×
+                    {busyLink === `remove:${link.linkId}` ? "Removing…" : "×"}
                   </button>
                 )
                 : null}
@@ -622,7 +698,9 @@ function LinksSection({ data }: { data: BranchPageData }) {
               {results.map((item) => (
                 <div className="link-search-result" key={item.id}>
                   <span>{item.title}</span>
-                  <button disabled={pending} onClick={() => add(item.id)} type="button">Add</button>
+                  <button disabled={busyLink === `add:${item.id}`} onClick={() => add(item.id)} type="button">
+                    {busyLink === `add:${item.id}` ? "Adding…" : "Add"}
+                  </button>
                 </div>
               ))}
               {message ? <p className="section-message">{message}</p> : null}

@@ -10,7 +10,8 @@ describe("Branch View linked-reference connector", () => {
   test("uses each exact branch's already accessible linked collection", () => {
     expect(view).toContain("connectorClassName(data.linkedBranches.length)");
     expect(view).toContain("connectorThickness(data.linkedBranches.length)");
-    expect(view).toContain("data.linkedBranches.map((link)");
+    expect(view).toContain("links.map((link)");
+    expect(view).toContain("linkedBranches: next");
   });
 
   test("keeps the ancestry structure and adds only restrained linked styling", () => {

@@ -21,7 +21,7 @@ describe("Branch View Workspace shortcut", () => {
   test("one shared recursive branch header covers main branches and subbranches", () => {
     expect(view).toContain("function BranchTreeItem");
     expect(view).toContain("<BranchTreeItem");
-    expect(view).toContain("flattenBranchTree(root)");
+    expect(view).toContain("flattenBranchTree(tree)");
     expect(view).toContain("branches.map(({ node, depth })");
     expect(view).toContain('href={`/branches/${data.branch.id}/workspace`}');
   });

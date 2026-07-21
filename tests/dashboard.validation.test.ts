@@ -52,11 +52,30 @@ describe("Home dashboard model", () => {
 describe("Create versus Resume route regression", () => {
   const project = process.cwd();
 
-  test("GET /branches/new does not create or resume a draft", () => {
+  test("normal authentication lands on Home while safe protected returns remain supported", () => {
+    const authModel = readFileSync(resolve(project, "src/features/auth/model.ts"), "utf8");
+    const authActions = readFileSync(resolve(project, "src/app/(auth)/actions.ts"), "utf8");
+    const proxy = readFileSync(resolve(project, "src/proxy.ts"), "utf8");
+    expect(authModel).toContain('DEFAULT_AUTH_RETURN_PATH = "/"');
+    expect(authActions.match(/redirect\(safeInternalReturnPath/g)).toHaveLength(2);
+    expect(proxy).toContain('destination.pathname = "/"');
+    expect(proxy).not.toContain('destination.pathname = "/branches/new"');
+    expect(proxy).toContain('pathname !== "/branches/new"');
+  });
+
+  test("root preserves signed-out welcome and signed-in Home without a redirect loop", () => {
+    const source = readFileSync(resolve(project, "src/app/page.tsx"), "utf8");
+    expect(source).toContain("if (!auth.user) return <WelcomePage />");
+    expect(source).toContain("getDashboardData(client, filters)");
+    expect(source).not.toContain("redirect(");
+  });
+
+  test("GET /branches/new redirects Home without creating or resuming a draft", () => {
     const source = readFileSync(resolve(project, "src/app/branches/new/page.tsx"), "utf8");
     expect(source).not.toContain("createMainBranchDraft");
     expect(source).not.toContain("getLatestEditableMainBranchDraft");
-    expect(source).not.toContain("redirect(");
+    expect(source).toContain('redirect("/")');
+    expect(source).not.toContain("Use Create Branch");
   });
 
   test("Create Branch is an explicit server action that creates a fresh draft", () => {
@@ -70,6 +89,7 @@ describe("Create versus Resume route regression", () => {
     const source = readFileSync(resolve(project, "src/components/layout/research-drawer.tsx"), "utf8");
     expect(source).toContain("/branches/drafts/${draft.id}/workspace");
     expect(source).toContain("drafts.slice(0, 3)");
+    expect(source).toContain("<h2>Recent Branches</h2>");
   });
 
   test("archive filters remain server query constraints", () => {
@@ -128,7 +148,7 @@ describe("corrected authenticated Home and header", () => {
   test("header active state is pathname-derived and controls stay compact", () => {
     expect(headerControls).toContain("usePathname()");
     expect(headerControls).toContain('const homeActive = pathname === "/"');
-    expect(headerControls).toContain('pathname === "/branches/new"');
+    expect(headerControls).not.toContain('pathname === "/branches/new"');
     expect(headerControls).toContain("header-control--active");
     expect(headerControls).not.toContain("const homeActive = true");
     const css = readFileSync(resolve(project, "src/app/globals.css"), "utf8");

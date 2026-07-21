@@ -41,6 +41,11 @@ describe("frontend authentication validation", () => {
     );
   });
 
+  test("uses Home for normal auth and retires the obsolete new-branch return path", () => {
+    expect(DEFAULT_AUTH_RETURN_PATH).toBe("/");
+    expect(safeInternalReturnPath("/branches/new")).toBe("/");
+  });
+
   test("rejects external, protocol-relative, and missing return paths", () => {
     expect(safeInternalReturnPath("https://evil.example/path")).toBe(DEFAULT_AUTH_RETURN_PATH);
     expect(safeInternalReturnPath("//evil.example/path")).toBe(DEFAULT_AUTH_RETURN_PATH);

@@ -27,9 +27,8 @@ export async function proxy(request: NextRequest) {
   const isAuthRoute = pathname === "/login" || pathname === "/signup";
   const isProtectedRoute =
     pathname === "/profile" ||
-    pathname === "/branches/new" ||
     pathname.includes("/workspace") ||
-    pathname.endsWith("/new");
+    (pathname.endsWith("/new") && pathname !== "/branches/new");
 
   if (!data.user && isProtectedRoute) {
     const loginUrl = request.nextUrl.clone();
@@ -43,7 +42,7 @@ export async function proxy(request: NextRequest) {
 
   if (data.user && isAuthRoute) {
     const destination = request.nextUrl.clone();
-    destination.pathname = "/branches/new";
+    destination.pathname = "/";
     destination.search = "";
     const redirect = NextResponse.redirect(destination);
     response.cookies.getAll().forEach((cookie) => redirect.cookies.set(cookie));
