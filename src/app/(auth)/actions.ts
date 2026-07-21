@@ -9,6 +9,7 @@ import {
   signupSchema,
   type AuthActionResult,
 } from "@/features/auth/model";
+import { emailConfirmationRedirectUrl } from "@/features/auth/urls";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 
 export async function loginAction(input: {
@@ -45,6 +46,7 @@ export async function signupAction(input: {
   email: string;
   password: string;
   confirmPassword: string;
+  returnTo?: string;
 }): Promise<AuthActionResult> {
   const parsed = signupSchema.safeParse(input);
   if (!parsed.success) {
@@ -60,6 +62,10 @@ export async function signupAction(input: {
     email: parsed.data.email,
     password: parsed.data.password,
     options: {
+      emailRedirectTo: emailConfirmationRedirectUrl(
+        process.env.NEXT_PUBLIC_APP_URL,
+        input.returnTo,
+      ),
       data: {
         full_name: parsed.data.displayName,
         user_name: parsed.data.username,
@@ -112,6 +118,7 @@ export async function signupFormAction(
     email,
     password: String(formData.get("password") ?? ""),
     confirmPassword: String(formData.get("confirmPassword") ?? ""),
+    returnTo: String(formData.get("returnTo") ?? ""),
   });
   if (!result.ok) return { ...result, email };
   if (result.status === "authenticated") {
