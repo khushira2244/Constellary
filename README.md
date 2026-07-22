@@ -61,9 +61,14 @@ Codex helped turn those decisions into a working system. It inspected the reposi
 
 ### Proof of the Build Process
 
-![GPT-5.6 product reasoning](public/assets/proof-of-concept/gpt_screenshot.png)
+The image below shows Codex working directly inside the Constellary repository during implementation.
 
 ![Codex implementation process](public/assets/proof-of-concept/codex_screenshot.png)
+
+Additional development evidence:
+
+- [View GPT-5.6 product reasoning](public/assets/proof-of-concept/gpt_screenshot.png)
+- [View Codex implementation summary](public/assets/proof-of-concept/codex_exp_what_it_did.png)
 
 Codex did not independently decide what Constellary should become.
 
