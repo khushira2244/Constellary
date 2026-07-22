@@ -20,9 +20,9 @@ Constellary is a provenance-first research workspace that preserves how research
 
 ## judges
 there is small text editing on the devpost due to last time t changes in edit ,I am not able to push it , 
-so it looks like in editing box, i will correct it after judging time is over. please read it in editing text box .
+so it looks like in editing box, i will correct it after judging time is over. 
 <img width="566" height="335" alt="image" src="https://github.com/user-attachments/assets/2e1e4d82-1b9f-4bc2-a131-bb04c1466a86" />
-
+please read it in editing text box .
 
 ## The Problem
 
