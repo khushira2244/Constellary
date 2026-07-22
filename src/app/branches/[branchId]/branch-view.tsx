@@ -20,6 +20,7 @@ import {
   branchStatusLabel,
   connectorClassName,
   connectorThickness,
+  compactSummaryPreview,
   firstSummaryParagraph,
   flattenBranchTree,
 } from "@/features/branch-view/model";
@@ -398,6 +399,7 @@ function SummarySection({
   const [message, setMessage] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const author = data.authors.find((profile) => profile.id === summary?.created_by);
+  const preview = compactSummaryPreview(readable?.content);
   const aiAttributed = data.aiAttribution.some((item) =>
     item.target_id === summary?.id || item.contribution_type === "summary_draft");
   return (
@@ -428,7 +430,7 @@ function SummarySection({
           </div>
           {message ? <p className="section-message" role="alert">{message}</p> : null}
         </div>
-      ) : <p>{readable?.content ?? "No summary has been added yet."}</p>}
+      ) : <p>{preview.content || "No summary has been added yet."}</p>}
       {readable ? (
         <small className="reading-meta">
           {author?.display_name ?? author?.username ?? "Research contributor"}
@@ -436,6 +438,11 @@ function SummarySection({
           {" · "}{branchStatusLabel(readable.status)}
           {aiAttributed ? " · AI-attributed" : ""}
         </small>
+      ) : null}
+      {summary && preview.truncated && !editing ? (
+        <Link className="summary-preview-link" href={`/branches/${data.branch.id}/summary`}>
+          View full summary
+        </Link>
       ) : null}
       {data.capabilities.canEdit && !editing ? (
         <div className="panel-management-actions">

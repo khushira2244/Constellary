@@ -5,6 +5,7 @@ import {
   branchClassificationLabel,
   connectorClassName,
   connectorThickness,
+  compactSummaryPreview,
   firstSummaryParagraph,
   flattenBranchTree,
 } from "@/features/branch-view/model";
@@ -34,6 +35,24 @@ describe("confirmed Branch View model", () => {
     expect(firstSummaryParagraph(null)).toContain("No approved summary");
   });
 
+  test("creates a stable compact summary preview", () => {
+    expect(compactSummaryPreview("A short complete summary.")).toEqual({
+      content: "A short complete summary.",
+      truncated: false,
+    });
+    expect(compactSummaryPreview("First paragraph.\n\nSecond paragraph.")).toEqual({
+      content: "First paragraph.…",
+      truncated: true,
+    });
+    const long = `A complete opening sentence. ${"research evidence ".repeat(40)}`;
+    const preview = compactSummaryPreview(long, 120);
+    expect(preview.truncated).toBe(true);
+    expect(preview.content).toMatch(/^A complete opening sentence\./);
+    expect(preview.content).toMatch(/…$/);
+    expect(preview.content.length).toBeLessThanOrEqual(121);
+    expect(preview.content).not.toMatch(/ evid…$/);
+  });
+
   test("keeps every subbranch and its depth in structured rendering order", () => {
     const leaf: BranchTreeNode = { data: page("leaf", "child", "existing_branch"), children: [] };
     const child: BranchTreeNode = { data: page("child", "root", "existing_branch"), children: [leaf] };
@@ -46,7 +65,7 @@ describe("confirmed Branch View model", () => {
   });
 
   test("bounds linked-branch connector emphasis without changing ancestry", () => {
-    expect([0, 1, 2, 3, 5, 6, 20].map(connectorThickness)).toEqual([1, 2, 2, 3, 3, 4, 4]);
+    expect([0, 1, 2, 3, 5, 6, 20].map(connectorThickness)).toEqual([1, 3, 3, 3, 3, 4, 4]);
   });
 
   test("uses linked connector styling only when the exact accessible count is positive", () => {
